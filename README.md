@@ -16,58 +16,58 @@
 ---
 
 ## 📖 Overview
-This repository contains our team's implementation of the **TE3003B** block in collaboration with **Manchester Robotics Ltd (MCR2)**. We focus on modern autonomous systems, localization techniques, navigation, and intelligent path planning using the **Puzzlebot Jetson/Lidar Edition**.
-
-## 🛠️ Tech Stack & Requirements
-| Component | Specification |
-| :--- | :--- |
-| **OS** | Ubuntu 22.04 LTS (Jammy Jellyfish) |
-| **ROS2** | Humble Hawksbill |
-| **Hardware** | Puzzlebot Jetson/Lidar Edition |
-| **Python** | 3.10+ |
-| **Simulator** | Gazebo |
-
----
-
-## 📂 Project Structure
-- **[`/challenges`](./challenges)**: 🧩 Weekly mini-challenges (Modelling, Kinematics, Probabilities, etc.)
-- **[`/reto`](./reto)**: 🏆 **The Final Challenge**: Autonomous navigation with Kalman Filter and Aruco markers.
-- **[`/professor_repo`](./professor_repo)**: 📚 Mirror of the [official repository](https://github.com/ManchesterRoboticsLtd/TE3003B_Integration_of_Robotics_and_Intelligent_Systems_2026) for quick reference to presentations and base code.
-
----
+Repository for the **TE3003B** block at Tec de Monterrey. Implementation of localization, navigation, and path planning for the **Puzzlebot Jetson Edition**.
 
 ## 🗓️ Roadmap & Progress
-- [x] **[Week 1: Dynamical Systems](./challenges/week1)** (URDF, Drone/Puzzlebot Modelling) ✅
-- [ ] **Week 2: Mobile Robots Fundamentals** (Kinematics, Dead Reckoning)
-- [ ] **Week 3: Probabilities** (Discrete/Continuous variables)
-- [ ] **Week 4: Uncertainty** (Confidence Ellipsoids)
-- [ ] **Week 5: Reactive Navigation** (Obstacle Avoidance: Bug 0, 1, 2)
-- [ ] **Week 6: Sources of Information** (Bayes/Kalman Filter)
-- [ ] **Week 7-9: Final Challenge** (Integrated Navigation & Grading)
+- [x] **[Week 1: Dynamical Systems](./challenges/week1)** (URDF & Puzzlebot Modelling) ✅
+- [ ] **Week 2: Mobile Robots Fundamentals** (Kinematics & Point-to-point)
+- [ ] **Week 3: Probabilities** (Random variables & Multi-robot plotting)
+- [ ] **Week 4: Uncertainty** (Confidence Ellipsoid & Robot Experiments)
+- [ ] **Week 5: Reactive Navigation** (Obstacle Avoidance: Bug 0/2)
+- [ ] **Week 6: Sources of Information** (Bayes & Kalman Filter 2D)
+- [ ] **Week 7: Aruco & Kalman** (Visual Localisation)
+- [ ] **Week 8-9: Final Challenge** (Integration & Grading)
 
 ---
 
-## ⚙️ Automated CI/CD
-We use **GitHub Actions** to ensure code reliability across the team:
-- **`ROS2 Humble CI`**: Automatically builds and tests the workspace in a `ros:humble` container.
-- **`Python Linting`**: Ensures all scripts follow PEP8 standards using `ruff` and `black`.
+## 🤝 How to Collaborate (Team Guide)
 
-## 🛠️ Quick Setup
-To build the workspace locally:
+Follow these steps to keep the repo clean and professional:
+
+### 1. Creating an Issue
+Before starting a new task, create an **Issue** on GitHub:
+- Explain what you're working on (e.g., "Implement Bug 2 algorithm").
+- Assign it to yourself.
+
+### 2. Working with Branches
+**Never** commit directly to `main`. Create a feature branch:
 ```bash
-# Update and install dependencies
-sudo apt update && sudo apt install -y python3-colcon-common-extensions
-
-# Build
-colcon build --symlink-install
-
-# Source
-source install/setup.bash
+git checkout -b feature/week-2-kinematics
 ```
 
-## 🤝 Team
-*   **User**: [@Alfonso](https://github.com/alfonso) - *Robotics Lead*
+### 3. Commit & Push
+Use clear commit messages:
+```bash
+git add .
+git commit -m "feat: implement puzzlebot kinematic model"
+git push origin feature/week-2-kinematics
+```
+
+### 4. Pull Requests (PR)
+When the work is ready:
+- Open a **PR** to merge your branch into `main`.
+- Wait for the **GitHub Actions** to pass (Build & Lint).
+- Ask for a review.
+
+---
+
+## 🛠️ Quick Setup
+```bash
+colcon build --symlink-install
+source install/setup.bash
+ros2 launch puzzlebot_sim puzzlebot_launch.py
+```
 
 ---
 > [!IMPORTANT]
-> This project is for educational purposes. All proprietary designs belong to Manchester Robotics Ltd. (MCR2).
+> All proprietary designs belong to Manchester Robotics Ltd. (MCR2).

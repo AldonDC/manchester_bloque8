@@ -1,0 +1,33 @@
+name: Weekly Challenge Implementation
+description: Start a new task for the current week.
+title: "[WEEK X]: Challenge Implementation"
+labels: ["challenge", "todo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🚀 **Starting a new challenge implementation.**
+  - type: input
+    id: week_number
+    attributes:
+      label: Week Number
+      placeholder: e.g., 2
+    validations:
+      required: true
+  - type: textarea
+    id: task_description
+    attributes:
+      label: Task Description
+      description: What are you going to implement?
+      placeholder: e.g., Implement Point-to-point navigation for the Puzzlebot.
+    validations:
+      required: true
+  - type: checkboxes
+    id: tasks
+    attributes:
+      label: Tasks
+      options:
+        - label: Study the theoretical session from professor_repo.
+        - label: Create/Modify the Python scripts for the challenge.
+        - label: Test in RViz/Gazebo.
+        - label: Request a Pull Request review.
