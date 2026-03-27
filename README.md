@@ -1,8 +1,11 @@
 # 🤖 TE3003B: Integration of Robotics and Intelligent Systems (2026)
 ### 🚀 Final Project & Challenges Repository
 
+![Build Status](https://github.com/alfonso/manchester_bloque/actions/workflows/ros2_humble_ci.yml/badge.svg)
+![Lint Status](https://github.com/alfonso/manchester_bloque/actions/workflows/python_lint.yml/badge.svg)
+
 <div align="center">
-  <img src="https://github.com/ManchesterRoboticsLtd/TE3003B_Integration_of_Robotics_and_Intelligent_Systems/blob/main/Misc/Logos/MCR2_Logo_Black.png" width="200px" alt="MCR2 Logo">
+  <img src="https://raw.githubusercontent.com/ManchesterRoboticsLtd/TE3003B_Integration_of_Robotics_and_Intelligent_Systems_2026/main/Misc/Logos/MCR2_Logo_Black.png" width="200px" alt="MCR2 Logo">
   <br>
   <i>Developed for the 8th Semester - Robotics Engineering</i>
 </div>
