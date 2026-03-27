@@ -3,9 +3,12 @@
 
 ![Build Status](https://github.com/alfonso/manchester_bloque/actions/workflows/ros2_humble_ci.yml/badge.svg)
 ![Lint Status](https://github.com/alfonso/manchester_bloque/actions/workflows/python_lint.yml/badge.svg)
+![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+![ROS2](https://img.shields.io/badge/ROS2-Humble-orange)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/ManchesterRoboticsLtd/TE3003B_Integration_of_Robotics_and_Intelligent_Systems_2026/main/Misc/Logos/MCR2_Logo_Black.png" width="200px" alt="MCR2 Logo">
+  <img src="./media/logo.png" width="200px" alt="MCR2 Logo">
   <br>
   <i>Developed for the 8th Semester - Robotics Engineering</i>
 </div>
