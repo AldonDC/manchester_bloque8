@@ -2,17 +2,40 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-
-from launch.actions import  EmitEvent, LogInfo, RegisterEventHandler
-from launch.event_handlers import OnProcessExit, OnShutdown
-from launch.events import Shutdown
-from launch.substitutions import EnvironmentVariable, LocalSubstitution
-
+import urllib.parse
 
 def generate_launch_description():
+    pkg_share = get_package_share_directory('puzzlebot_sim')
+    urdf_file = os.path.join(pkg_share, 'urdf', 'puzzlebot.urdf')
+    rviz_config = os.path.join(pkg_share, 'rviz', 'puzzlebot_rviz.rviz')
 
+    with open(urdf_file, 'r') as infp:
+        robot_desc = infp.read()
+    
+    # Fix for spaces in paths (like '8 Semestre')
+    # We replace 'package://' with the absolute path and encode it properly
+    pkg_path = "file://" + urllib.parse.quote(pkg_share)
+    robot_desc = robot_desc.replace("package://puzzlebot_sim", pkg_path)
 
-
-    l_d = LaunchDescription([])
-
-    return l_d
+    return LaunchDescription([
+        Node(
+            package='robot_state_publisher',
+            executable='robot_state_publisher',
+            name='robot_state_publisher',
+            output='screen',
+            parameters=[{'robot_description': robot_desc}]
+        ),
+        Node(
+            package='joint_state_publisher_gui',
+            executable='joint_state_publisher_gui',
+            name='joint_state_publisher_gui',
+            output='screen'
+        ),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            output='screen',
+            arguments=['-d', rviz_config]
+        )
+    ])

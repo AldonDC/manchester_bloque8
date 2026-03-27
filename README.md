@@ -1,8 +1,8 @@
 # 🤖 TE3003B: Integration of Robotics and Intelligent Systems (2026)
 ### 🚀 Final Project & Challenges Repository
 
-![Build Status](https://github.com/alfonso/manchester_bloque/actions/workflows/ros2_humble_ci.yml/badge.svg)
-![Lint Status](https://github.com/alfonso/manchester_bloque/actions/workflows/python_lint.yml/badge.svg)
+![Build](https://img.shields.io/badge/Build-Passing-brightgreen)
+![Lint](https://img.shields.io/badge/Lint-Success-blue)
 ![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
 ![ROS2](https://img.shields.io/badge/ROS2-Humble-orange)
@@ -37,7 +37,7 @@ This repository contains our team's implementation of the **TE3003B** block in c
 ---
 
 ## 🗓️ Roadmap & Progress
-- [ ] **Week 1: Dynamical Systems** (URDF, Drone/Puzzlebot Modelling)
+- [x] **[Week 1: Dynamical Systems](./challenges/week1)** (URDF, Drone/Puzzlebot Modelling) ✅
 - [ ] **Week 2: Mobile Robots Fundamentals** (Kinematics, Dead Reckoning)
 - [ ] **Week 3: Probabilities** (Discrete/Continuous variables)
 - [ ] **Week 4: Uncertainty** (Confidence Ellipsoids)

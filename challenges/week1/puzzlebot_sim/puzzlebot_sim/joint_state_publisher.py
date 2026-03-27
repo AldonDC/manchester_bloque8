@@ -1,49 +1,36 @@
-
 import rclpy
 from rclpy.node import Node
-from tf2_ros import TransformBroadcaster
-from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
-import transforms3d
-import numpy as np
+import math
 
-class DronePublisher(Node):
-
+class JointStatePublisherNode(Node):
     def __init__(self):
-        super().__init__('frame_publisher')
-        
+        super().__init__('joint_state_publisher_puzzlebot')
+        self.publisher_ = self.create_publisher(JointState, 'joint_states', 10)
+        timer_period = 0.05  # 20 Hz
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.angle = 0.0
+        self.get_logger().info('🦾 Puzzlebot Joint States Publisher is active!')
 
-        #Create a Timer
-        timer_period = 0.005 #seconds
-        self.timer = self.create_timer(timer_period, self.timer_cb)
-
-
-    #Timer Callback
-    def timer_cb(self):
-
-        #YOUR CODE HERE
-        
-
-    def define_TF(self):
-        #Create Trasnform Messages
-
-
-
+    def timer_callback(self):
+        msg = JointState()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.name = ['wheel_l_joint', 'wheel_r_joint']
+        self.angle += 0.05 # Increment angle for rotation simulation
+        if self.angle > 2 * math.pi:
+            self.angle = 0.0
+        msg.position = [self.angle, self.angle]
+        self.publisher_.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
-
-    node = DronePublisher()
-
+    node = JointStatePublisherNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    finally:
-        if rclpy.ok():  # Ensure shutdown is only called once
-            rclpy.shutdown()
-        node.destroy_node()
-
+    node.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
