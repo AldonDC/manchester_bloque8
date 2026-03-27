@@ -12,8 +12,7 @@ def generate_launch_description():
     with open(urdf_file, 'r') as infp:
         robot_desc = infp.read()
     
-    # Fix for spaces in paths (like '8 Semestre')
-    # We replace 'package://' with the absolute path and encode it properly
+    # Fix for spaces in paths
     pkg_path = "file://" + urllib.parse.quote(pkg_share)
     robot_desc = robot_desc.replace("package://puzzlebot_sim", pkg_path)
 
@@ -26,16 +25,16 @@ def generate_launch_description():
             parameters=[{'robot_description': robot_desc}]
         ),
         Node(
-            package='joint_state_publisher_gui',
-            executable='joint_state_publisher_gui',
-            name='joint_state_publisher_gui',
+            package='puzzlebot_sim',
+            executable='joint_state_publisher',
+            name='puzzlebot_kinematic_sim',
             output='screen'
         ),
         Node(
             package='rviz2',
             executable='rviz2',
             name='rviz2',
-            output='screen',
-            arguments=['-d', rviz_config]
+            arguments=['-d', rviz_config],
+            output='screen'
         )
     ])

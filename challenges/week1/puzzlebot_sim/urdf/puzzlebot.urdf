@@ -3,13 +3,19 @@
 
   <!-- MATERIALS -->
   <material name="white">
-    <color rgba="1 1 1 1"/>
+    <color rgba="1.0 1.0 1.0 1.0"/>
   </material>
   <material name="black">
-    <color rgba="0 0 0 1"/>
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
+  <material name="orange">
+    <color rgba="1.0 0.5 0.0 1.0"/>
   </material>
   <material name="blue">
-    <color rgba="0 0 0.8 1"/>
+    <color rgba="0.0 0.5 1.0 1.0"/>
+  </material>
+  <material name="light_grey">
+    <color rgba="0.8 0.8 0.8 1.0"/>
   </material>
 
   <!-- BASE FOOTPRINT (Root) -->
@@ -18,19 +24,13 @@
   <!-- BASE LINK (Chassis) -->
   <link name="base_link">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5708 0 1.5708"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://puzzlebot_sim/meshes/Puzzlebot_Jetson_Lidar_Edition_Base.stl"/>
       </geometry>
-      <material name="white"/>
+      <material name="light_grey"/>
     </visual>
   </link>
-
-  <joint name="base_link_joint" type="fixed">
-    <parent link="base_footprint"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 0.05" rpy="0 0 0"/>
-  </joint>
 
   <!-- RIGHT WHEEL -->
   <link name="wheel_r_link">
@@ -39,34 +39,20 @@
       <geometry>
         <mesh filename="package://puzzlebot_sim/meshes/Puzzlebot_Wheel.stl"/>
       </geometry>
-      <material name="black"/>
+      <material name="orange"/>
     </visual>
   </link>
-
-  <joint name="wheel_r_joint" type="continuous">
-    <parent link="base_link"/>
-    <child link="wheel_r_link"/>
-    <origin xyz="0.052 -0.095 -0.0025" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-  </joint>
 
   <!-- LEFT WHEEL -->
   <link name="wheel_l_link">
     <visual>
-      <origin xyz="0 0 0" rpy="-1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <mesh filename="package://puzzlebot_sim/meshes/Puzzlebot_Wheel.stl"/>
       </geometry>
-      <material name="black"/>
+      <material name="orange"/>
     </visual>
   </link>
-
-  <joint name="wheel_l_joint" type="continuous">
-    <parent link="base_link"/>
-    <child link="wheel_l_link"/>
-    <origin xyz="0.052 0.095 -0.0025" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-  </joint>
 
   <!-- CASTER WHEEL -->
   <link name="caster_link">
@@ -75,14 +61,35 @@
       <geometry>
         <mesh filename="package://puzzlebot_sim/meshes/Puzzlebot_Caster_Wheel.stl"/>
       </geometry>
-      <material name="black"/>
+      <material name="white"/>
     </visual>
   </link>
+
+  <!-- JOINTS -->
+  <joint name="base_link_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0.0 0.0 0.05" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="wheel_r_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_r_link"/>
+    <origin xyz="0.052 -0.095 -0.0025" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <joint name="wheel_l_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_l_link"/>
+    <origin xyz="0.052 0.095 -0.0025" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
 
   <joint name="caster_joint" type="fixed">
     <parent link="base_link"/>
     <child link="caster_link"/>
-    <origin xyz="-0.095 0 -0.03" rpy="0 0 0"/>
+    <origin xyz="-0.095 0.0 -0.03" rpy="0 0 0"/>
   </joint>
 
 </robot>
