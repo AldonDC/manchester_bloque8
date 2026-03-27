@@ -1,0 +1,34 @@
+name: ROS2 Humble CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  ros2-build:
+    runs-on: ubuntu-latest
+    container:
+      image: ros:humble-ros-base-jammy
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip python3-colcon-common-extensions libpython3-dev
+        # Add additional dependencies here if needed
+
+    - name: Colcon Build
+      run: |
+        . /opt/ros/humble/setup.sh
+        colcon build --symlink-install --event-handlers console_direct+
+
+    - name: Run Tests
+      run: |
+        . /opt/ros/humble/setup.sh
+        . ./install/setup.sh || true
+        colcon test --event-handlers console_direct+
+        colcon test-result --all

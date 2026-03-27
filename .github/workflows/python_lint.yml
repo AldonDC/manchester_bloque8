@@ -1,0 +1,33 @@
+name: Python Linting & Formatting
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  python_lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-python-version: '3.10'
+
+    - name: Install Linting Tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff black flake8
+
+    - name: Run Ruff (Fast Linting)
+      run: ruff check .
+
+    - name: Check Formatting (Black)
+      run: black --check .
+
+    - name: Run Flake8 (Optional but comprehensive)
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
