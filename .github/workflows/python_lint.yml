@@ -24,10 +24,10 @@ jobs:
         pip install ruff black flake8
 
     - name: Run Ruff (Fast Linting)
-      run: ruff check .
+      run: ruff check . --extend-exclude professor_repo
 
     - name: Check Formatting (Black)
-      run: black --check .
+      run: black --check . --extend-exclude professor_repo
 
     - name: Run Flake8 (Optional but comprehensive)
-      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      run: flake8 . --exclude professor_repo --count --select=E9,F63,F7,F82 --show-source --statistics
