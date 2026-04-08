@@ -4,6 +4,7 @@ import urllib.parse
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import ExecuteProcess
 
 
 def generate_launch_description():
@@ -18,27 +19,43 @@ def generate_launch_description():
     pkg_path = "file://" + urllib.parse.quote(pkg_share)
     robot_desc = robot_desc.replace("package://puzzlebot_sim", pkg_path)
 
+
+    # Asegurar que el directorio de salida para PDFs existe
+    output_pdf_path = "/home/alfonso/Documents/8 Semestre/manchester_bloque/challenges/output_pdf"
+    if not os.path.exists(output_pdf_path):
+        os.makedirs(output_pdf_path)
+
     return LaunchDescription(
         [
+            # Transformada estatica: map -> odom (Requerido por el profe)
+            Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
+            ),
+            # Publicador del estado del robot (procesa el URDF)
             Node(
                 package="robot_state_publisher",
                 executable="robot_state_publisher",
-                name="robot_state_publisher",
-                output="screen",
                 parameters=[{"robot_description": robot_desc}],
             ),
+            # Simulador cinematico (publica odom -> base_footprint)
             Node(
                 package="puzzlebot_sim",
                 executable="joint_state_publisher",
                 name="puzzlebot_kinematic_sim",
-                output="screen",
             ),
+            # Visualizador RViz2
             Node(
                 package="rviz2",
                 executable="rviz2",
-                name="rviz2",
                 arguments=["-d", rviz_config],
+            ),
+            # Generador automatico de reporte en PDF
+            ExecuteProcess(
+                cmd=["ros2", "run", "tf2_tools", "view_frames"],
                 output="screen",
+                cwd="/home/alfonso/Documents/8 Semestre/manchester_bloque/challenges/output_pdf",  # Guardar aqui el PDF
             ),
         ]
     )

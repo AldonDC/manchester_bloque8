@@ -1,41 +1,53 @@
-# 🧩 Week 1 Challenge: Dynamical Systems & Modelling
+# Reto Semana 1: Modelado y Cinematica de Puzzlebot
 
-## 📋 Objective
+## Objetivo del Proyecto
+El presente proyecto tiene como finalidad el modelado tridimensional y la implementacion cinematica del robot movil Puzzlebot Jetson/Lidar Edition en el entorno ROS 2 Humble. Se busca establecer una base solida para la navegacion mediante la correcta configuracion del arbol de transformadas (TF) y la simulacion de movimiento en bucle abierto.
 
-The goal of this week is to understand the basics of dynamical systems and learn how to model robots in ROS 2 using **URDF** (Unified Robot Description Format) and visualize them in **RViz**.
+## Arquitectura de Transformadas (TF)
+Para lograr el movimiento y la representacion jerarquica del robot, se configuraron un total de **6 transformadas** fundamentales:
 
-## 🎯 Tasks
+1. **map ➔ odom** (Estatica): Define el origen global del sistema. Se especifica en el archivo `puzzlebot_launch.py` mediante un `static_transform_publisher`.
+2. **odom ➔ base_footprint** (Dinamica): Representa el desplazamiento del robot en el mundo. Esta es calculada por el nodo `joint_state_publisher.py` integrando las velocidades lineal y angular.
+3. **base_footprint ➔ base_link** (Fija): Define la altura del chasis respecto al suelo (0.05m en Z). Se encuentra definida en el `puzzlebot.urdf`.
+4. **base_link ➔ wheel_l** (Continua): Union de la rueda izquierda. Su giro visual es controlado mediante mensajes de tipo `JointState`.
+5. **base_link ➔ wheel_r** (Continua): Union de la rueda derecha. Al igual que la izquierda, su rotacion depende del topico `/joint_states`.
+6. **base_link ➔ caster** (Fija): Union de la rueda loca trasera.
 
-1. **Drone Modelling**: Understand transforms and markers by modelling a drone.
-2. **Puzzlebot Modelling**: Create a complete URDF model of the **Puzzlebot Jetson/Lidar Edition**.
-3. **Visualization**: Use `joint_state_publisher` and `robot_state_publisher` to visualize the robot in RViz with its simplified meshes.
+## Detalles de Implementacion en Codigo
 
-## 📂 Deliverables
+### 1. Publicacion de Transformada Dinamica
+En el script `joint_state_publisher.py`, la posicion se publica dentro del `timer_callback`. El fragmento relevante es:
+```python
+t = TransformStamped()
+t.header.frame_id = "odom"
+t.child_frame_id = "base_footprint"
+t.transform.translation.x = self.x
+t.transform.translation.y = self.y
+# ... conversion de angulo a cuaternion ...
+self.tf_broadcaster.sendTransform(t)
+```
 
-- [ ] **URDF File**: `urdf/puzzlebot.urdf`
-- [ ] **Launch File**: `launch/puzzlebot_launch.py`
-- [ ] **Python Scripts**: `puzzlebot_sim/joint_state_publisher.py` (Custom implementation)
+### 2. Control Individual de Articulaciones (Joint States)
+Para que las ruedas giren de forma independiente en RViz, el nodo publica en el topico `/joint_states`. Se especifican los nombres exactos definidos en el URDF:
+```python
+js = JointState()
+js.name = ["wheel_l_joint", "wheel_r_joint"]
+js.position = [self.wheel_angle, self.wheel_angle]
+self.joint_pub.publish(js)
+```
+*Dato tecnico:* Gracias a que en el URDF espejeamos el eje de la rueda derecha (`axis="0 -1 0"`), ambas ruedas giran hacia adelante simultaneamente al recibir el mismo valor de posicion.
 
-## 🛠️ Instructions
+## Instrucciones de Uso
 
-### 1. Build the package
-
-Ensure you are in the root of the workspace:
-
+### 1. Compilacion
 ```bash
+rm -rf build install log
 colcon build --packages-select puzzlebot_sim
 source install/setup.bash
 ```
 
-### 2. Launch the Simulation
-
-To visualize the current state of the Puzzlebot:
-
+### 2. Ejecucion y Verificacion
 ```bash
 ros2 launch puzzlebot_sim puzzlebot_launch.py
 ```
-
-## 📝 Notes
-
-- Check the official PDF for detailed dimensions: [MCR2_Puzzlebot_Modelling_challenge.pdf](./MCR2_Puzzlebot_Modelling_challenge.pdf)
-- Use the provide meshes in the `meshes/` directory for a realistic look.
+Tras 5 segundos, se generara el archivo **`frames.pdf`**. Al abrirlo, el diagrama debe mostrar la cascada completa desde `map` hasta los links de las ruedas, validando asi el cumplimiento de los requerimientos de modelado.
