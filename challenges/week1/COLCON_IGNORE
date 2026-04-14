@@ -1,0 +1,2 @@
+# Este archivo le indica a colcon que ignore esta carpeta (week1) durante el build
+# para evitar el error de "Duplicate package names not supported" con la week2.
