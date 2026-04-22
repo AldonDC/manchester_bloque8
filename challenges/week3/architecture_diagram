@@ -1,0 +1,32 @@
+// Arquitectura Reto 3
+digraph Puzzlebot_Architecture {
+	dpi=300 rankdir=LR size="12,8"
+	node [fontname=Arial]
+	node [fontcolor=black penwidth=2 shape=ellipse style=filled]
+	TG [label="Trajectory / Set Point
+Generator" color="#E67E22" fillcolor="#FFDAB9"]
+	CTRL [label="Controller
+(PID)" color="#E67E22" fillcolor="#FFDAB9"]
+	JSP [label="Joint State
+Publisher" color="#E67E22" fillcolor="#FFDAB9"]
+	RSP [label="Robot State
+Publisher" color="#E67E22" fillcolor="#FFDAB9"]
+	CT [label="Coordinate
+Transform" color="#E67E22" fillcolor="#FFDAB9"]
+	ROBOT [label="Real / Sim
+Robot" color="#03A9F4" fillcolor="#E1F5FE"]
+	LOC [label="Localisation
+(Dead Reckoning)" color="#F44336" fillcolor="#FFEBEE"]
+	RVIZ [label=RViz color="#212121" fillcolor="#F5F5F5" shape=box style=filled]
+	edge [color="#757575" fontname=Arial fontsize=10]
+	TG -> CTRL [label=set_point]
+	CTRL -> ROBOT [label=cmd_vel]
+	ROBOT -> LOC [label="wl, wr"]
+	LOC -> CTRL [label=odom constraint=false weight=0]
+	CTRL -> TG [label=next_point constraint=false]
+	LOC -> JSP [label=odom]
+	LOC -> CT [label=odom]
+	JSP -> RSP [label=joint_states]
+	RSP -> RVIZ [label=robot_description]
+	CT -> RVIZ [label=tf]
+}

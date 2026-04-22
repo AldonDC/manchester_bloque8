@@ -3,7 +3,6 @@ from rclpy.node import Node
 from std_msgs.msg import Float32
 from nav_msgs.msg import Odometry
 import math
-import math
 
 class Localisation(Node):
     def __init__(self):
