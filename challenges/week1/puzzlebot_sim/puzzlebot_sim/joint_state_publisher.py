@@ -3,6 +3,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
 from tf2_ros import TransformBroadcaster
+import math
 
 
 
@@ -91,7 +92,9 @@ class PuzzlebotKinematicSim(Node):
         self.get_logger().info(f"Pose: x={self.x:.2f}, y={self.y:.2f}, th={self.th:.2f}")
 
 
+"""Main function."""
 def main(args=None):
+    """Nodo principal para la simulación cinemática."""
     rclpy.init(args=args)
     node = PuzzlebotKinematicSim()
     try:
