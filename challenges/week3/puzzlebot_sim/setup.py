@@ -1,0 +1,53 @@
+import os
+from glob import glob
+
+from setuptools import find_packages, setup
+
+package_name = "puzzlebot_sim"
+
+setup(
+    name=package_name,
+    version="0.0.0",
+    packages=[package_name, "puzzlebot_sim.part1", "puzzlebot_sim.part2", "puzzlebot_sim.part3"],
+    data_files=[
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml"]),
+        (
+            os.path.join("share", package_name, "launch"),
+            glob(os.path.join("launch", "*launch.[pxy][yma]*")),
+        ),
+        (
+            os.path.join("share", package_name, "config"),
+            glob(os.path.join("config", "*.[yma]*")),
+        ),
+        (
+            os.path.join("share", package_name, "rviz"),
+            glob(os.path.join("rviz", "*.rviz")),
+        ),
+        (
+            os.path.join("share", package_name, "meshes"),
+            glob(os.path.join("meshes", "*.stl")),
+        ),
+        (
+            os.path.join("share", package_name, "urdf"),
+            glob(os.path.join("urdf", "*.urdf")),
+        ),
+    ],
+    install_requires=["setuptools"],
+    zip_safe=True,
+    maintainer="Mario Martinez",
+    maintainer_email="mario.mtz@manchester-robotics.com",
+    description="Puzzlebot Kinematic Sim",
+    license="Apache-2.0",
+    tests_require=["pytest"],
+    entry_points={
+        "console_scripts": [
+            "part1_kinematic_sim = puzzlebot_sim.part1.kinematic_sim:main",
+            "part2_localisation = puzzlebot_sim.part2.localisation:main",
+            "part2_joint_state_publisher = puzzlebot_sim.part2.joint_state_publisher:main",
+            "part2_coordinate_transform = puzzlebot_sim.part2.coordinate_transform:main",
+            "part3_control = puzzlebot_sim.part3.control:main",
+            "part3_trajectory_generator = puzzlebot_sim.part3.trajectory_generator:main"
+        ],
+    },
+)
