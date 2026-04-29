@@ -38,7 +38,6 @@ Nota sobre nombres de joint:
     como '{prefix}/wheel_r_joint' y '{prefix}/wheel_l_joint'.
 """
 
-import math
 
 import rclpy
 from rclpy.node import Node
