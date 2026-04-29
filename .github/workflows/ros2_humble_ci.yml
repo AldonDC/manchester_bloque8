@@ -24,7 +24,7 @@ jobs:
     - name: Colcon Build
       run: |
         . /opt/ros/humble/setup.sh
-        colcon build --symlink-install --packages-ignore professor_repo --event-handlers console_direct+
+        colcon build --symlink-install --event-handlers console_direct+
 
     - name: Run Tests
       run: |

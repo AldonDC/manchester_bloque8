@@ -4,7 +4,7 @@ import urllib.parse
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, TimerAction
 
 
 def generate_launch_description():
@@ -45,11 +45,16 @@ def generate_launch_description():
                 executable="rviz2",
                 arguments=["-d", rviz_config],
             ),
-            # Generador automatico de reporte en PDF
-            ExecuteProcess(
-                cmd=["ros2", "run", "tf2_tools", "view_frames"],
-                output="screen",
-                cwd="/home/alfonso/Documents/8 Semestre/manchester_bloque/challenges/output_pdf",  # Guardar aqui el PDF
+            # Generador automático de reporte en PDF (con retraso para esperar datos de TF)
+            TimerAction(
+                period=15.0,
+                actions=[
+                    ExecuteProcess(
+                        cmd=["ros2", "run", "tf2_tools", "view_frames"],
+                        output="screen",
+                        cwd="/home/alfonso/Documents/8 Semestre/manchester_bloque/challenges/output_pdf",
+                    )
+                ]
             ),
         ]
     )

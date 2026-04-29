@@ -39,7 +39,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, ExecuteProcess, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
@@ -95,4 +95,17 @@ def generate_launch_description():
         output='screen'
     )
 
-    return LaunchDescription([robot1, robot2, rviz])
+    # ── Generador automático de TF Tree ───────────────────────────────────────
+    # Ejecuta 'view_frames' después de 10 segundos para asegurar que el árbol
+    # de transformadas ya esté poblado por los nodos de localización.
+    tf_tree = TimerAction(
+        period=15.0,
+        actions=[
+            ExecuteProcess(
+                cmd=['ros2', 'run', 'tf2_tools', 'view_frames'],
+                output='screen'
+            )
+        ]
+    )
+
+    return LaunchDescription([robot1, robot2, rviz, tf_tree])
