@@ -1,0 +1,10 @@
+[tool.ruff]
+# Carpetas que NO son entregables del estudiante (material del profesor,
+# paquetes de semanas previas, dumps experimentales). Se excluyen de los
+# checks de CI para evitar falsos positivos.
+extend-exclude = [
+    "professor_repo",
+    "challenges/Week5/Activities",
+    "challenges/Week5/Gazebo Simulator",
+    "test_urdf.py",
+]
