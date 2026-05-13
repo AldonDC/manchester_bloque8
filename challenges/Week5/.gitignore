@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Colcon build artifacts (si compilas dentro de Week5)
+build/
+install/
+log/
+
+# Output local (PDFs generados del TF tree, RViz snapshots, etc.)
+Challenge/output/*
+!Challenge/output/.gitkeep
+
+# Editores / OS
+.vscode/.ropeproject
+.DS_Store
+*.swp
