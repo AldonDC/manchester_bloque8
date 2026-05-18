@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<!--
+  bug_medium.world
+  ================
+  Escenario intermedio: dos obstáculos en cascada que obligan al Bug a
+  bordear dos veces antes de llegar al goal. Sirve para mostrar que el
+  algoritmo recupera GO_TO_GOAL entre obstáculos.
+
+  Layout (vista desde arriba, robot inicia en origen, goal en (4, 0)):
+
+       Y                          (goal)
+       │                            ●  (4, 0)
+       │
+       │      ███      ███
+       │      ███      ███
+   ────┼──────●─── ────●──────────► X
+       │   (1.5, 0)  (3.0, 0)
+       │
+-->
+<sdf version="1.9">
+  <world name="bug_medium">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"           name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"     name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"           name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.7 0.85 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <light type="directional" name="sun">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.3 -0.3 -1</direction>
+      <cast_shadows>true</cast_shadows>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="col">
+          <geometry><plane><normal>0 0 1</normal><size>50 50</size></plane></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><plane><normal>0 0 1</normal><size>50 50</size></plane></geometry>
+          <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Bandera 3D del goal en (4, 0) -->
+    <include>
+      <name>goal_visual</name>
+      <uri>model://goal_flag</uri>
+      <pose>4.0 0.0 0 0 0 0</pose>
+    </include>
+
+    <!-- Obstáculo 1 -->
+    <model name="obstacle_1">
+      <static>true</static>
+      <pose>1.5 0.4 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.4 1.2 0.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.4 1.2 0.5</size></box></geometry>
+          <material>
+            <ambient>0.5 0.2 0.2 1</ambient>
+            <diffuse>0.7 0.3 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Obstáculo 2 — desplazado y rotado, mismo eje X -->
+    <model name="obstacle_2">
+      <static>true</static>
+      <pose>3.0 -0.4 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.4 1.2 0.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.4 1.2 0.5</size></box></geometry>
+          <material>
+            <ambient>0.5 0.3 0.2 1</ambient>
+            <diffuse>0.7 0.4 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>-3 -3 5 0 0.7 0.78</pose>
+        <view_controller>orbit</view_controller>
+      </camera>
+    </gui>
+  </world>
+</sdf>

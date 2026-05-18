@@ -1,0 +1,131 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: true
+      Name: RobotModel
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Marker Scale: 0.5
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Enabled: true
+      Name: LaserScan
+      Topic:
+        Value: /scan
+      Size (m): 0.03
+      Color: 255; 255; 0
+      Style: Points
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: GoalMarker
+      Topic:
+        Value: /visualization_marker_array
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: BugMarkers
+      Topic:
+        Value: /bug/markers
+      Value: true
+    - Class: rviz_default_plugins/Odometry
+      Angle Tolerance: 0.05
+      Keep: 500
+      Position Tolerance: 0.02
+      Enabled: true
+      Name: Odometry
+      Topic:
+        Value: /odom
+      Shape:
+        Alpha: 1
+        Axes Length: 0.2
+        Axes Radius: 0.01
+        Color: 255; 25; 0
+        Head Length: 0.07
+        Head Radius: 0.04
+        Shaft Length: 0.1
+        Shaft Radius: 0.015
+        Value: Arrow
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.4
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 30
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 6.0
+      Focal Point:
+        X: 1.5
+        Y: 0.0
+        Z: 0.0
+      Pitch: 1.0
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 0.78
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 800
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Width: 1280
+  X: 100
+  Y: 50

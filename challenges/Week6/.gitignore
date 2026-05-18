@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Colcon
+build/
+install/
+log/
+
+# Output local (evidencias)
+Challenge/output/*
+!Challenge/output/.gitkeep
+
+# Editores / OS
+.vscode/.ropeproject
+.DS_Store
+*.swp
