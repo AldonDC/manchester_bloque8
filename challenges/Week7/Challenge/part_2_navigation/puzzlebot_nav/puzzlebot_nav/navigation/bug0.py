@@ -32,6 +32,7 @@ CONTRATO ROS:
 """
 
 import math
+import re
 from enum import Enum
 
 import rclpy
@@ -40,6 +41,8 @@ from std_msgs.msg import Float32, String, ColorRGBA
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
+
+from puzzlebot_nav.navigation._status_panel import render as render_panel
 
 
 class State(str, Enum):
@@ -74,6 +77,14 @@ class Bug0(Node):
         self.tx = self.get_parameter('target_x').value
         self.ty = self.get_parameter('target_y').value
         self.d_front = self.d_left = self.d_right = float('inf')
+        # Esperamos a primera lectura LiDAR real antes de mover (evita
+        # girar a ciegas con d_front=inf en el arranque).
+        self._lidar_ready = False
+        # Esperamos a primera lectura de /odom antes de mover.
+        self._odom_ready = False
+        # Esperamos al primer /goal del waypoint_manager (los defaults
+        # target_x/y son del Mini Challenge de Week 6, no nuestros wp).
+        self._goal_received = False
 
         self.wall_side = +1
         self.hit_dist_to_goal = float('inf')
@@ -100,13 +111,24 @@ class Bug0(Node):
         self.create_subscription(Float32,  'bug/d_front', self._df_cb,  10)
         self.create_subscription(Float32,  'bug/d_left',  self._dl_cb,  10)
         self.create_subscription(Float32,  'bug/d_right', self._dr_cb,  10)
+        # Status del waypoint manager para mostrar el wp actual en el panel.
+        self.create_subscription(String, 'waypoint_manager/state',
+                                 self._wpm_cb, 10)
+        self.wp_idx = 0
+        self.wp_total = 4
+        self.wpm_phase = '...'
 
         self.pub_setpoint = self.create_publisher(Point,       'set_point',   10)
         self.pub_state    = self.create_publisher(String,      'bug/state',   10)
         self.pub_markers  = self.create_publisher(MarkerArray, 'bug/markers', 10)
 
+        # Tiempo de arranque para los logs.
+        self._t0 = self.get_clock().now().nanoseconds * 1e-9
+
         self.create_timer(self.dt, self._loop)
         self.create_timer(0.5, self._markers)
+        # Panel de status en terminal cada 1.5 s.
+        self.create_timer(1.5, self._panel)
 
         self.get_logger().info(
             f'Bug 0 | goal=({self.tx:.2f},{self.ty:.2f})  '
@@ -136,15 +158,26 @@ class Bug0(Node):
         siny = 2.0 * (q.w * q.z + q.x * q.y)
         cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
         self.th = math.atan2(siny, cosy)
+        self._odom_ready = True
 
     def _goal_cb(self, msg: Point):
         if abs(self.tx - msg.x) > 1e-3 or abs(self.ty - msg.y) > 1e-3:
             self.tx, self.ty = msg.x, msg.y
             self._set_state(State.GO_TO_GOAL, 'nuevo goal')
+        self._goal_received = True
 
-    def _df_cb(self, m: Float32): self.d_front = m.data
+    def _df_cb(self, m: Float32):
+        self.d_front = m.data
+        self._lidar_ready = True
     def _dl_cb(self, m: Float32): self.d_left  = m.data
     def _dr_cb(self, m: Float32): self.d_right = m.data
+
+    def _wpm_cb(self, msg: String):
+        """Parse 'RUNNING wp[2]' / 'DWELL wp[2]' / 'FINISHED'."""
+        m = re.search(r'wp\[(\d+)\]', msg.data)
+        if m:
+            self.wp_idx = int(m.group(1))
+        self.wpm_phase = msg.data.split()[0] if msg.data else '...'
 
     # ── FSM ──────────────────────────────────────────────────────────────────
 
@@ -154,6 +187,14 @@ class Bug0(Node):
             self.state = new_state
 
     def _loop(self):
+        # Esperamos a tener odom Y LiDAR reales Y un goal real del manager
+        # antes de publicar setpoints. Sin esto, el bug arranca con (0,0,0)
+        # y goal=(3.0, 0.0) — los defaults del Mini Challenge — y se mueve
+        # hacia un sitio equivocado (efecto "círculo en RViz al arrancar").
+        if (not self._odom_ready
+                or not self._lidar_ready
+                or not self._goal_received):
+            return
         dist_goal = math.hypot(self.tx - self.x, self.ty - self.y)
 
         if dist_goal < self.goal_tolerance:
@@ -330,6 +371,33 @@ class Bug0(Node):
         sp_y = fy + bias * side_y
 
         self._publish_setpoint(sp_x, sp_y)
+
+    # ── Panel de status en terminal ──────────────────────────────────────────
+
+    def _panel(self):
+        """Imprime la tarjeta multiline cada 1.5 s."""
+        t = self.get_clock().now().nanoseconds * 1e-9 - self._t0
+        dist_goal = math.hypot(self.tx - self.x, self.ty - self.y)
+        extra = (
+            f'phase: {self.wpm_phase}   '
+            f'wall_side: {"L" if self.wall_side > 0 else "R"}   '
+            f'engaged: {"yes" if self.wall_engaged else "no"}'
+        )
+        panel = render_panel(
+            algo='Bug 0',
+            t_s=t,
+            state=self.state.value,
+            wp_idx=self.wp_idx,
+            wp_total=self.wp_total,
+            wp_xy=(self.tx, self.ty),
+            pose=(self.x, self.y, self.th),
+            d_goal=dist_goal,
+            d_front=self.d_front,
+            d_left=self.d_left,
+            d_right=self.d_right,
+            extra_line=extra,
+        )
+        print(panel, flush=True)
 
     # ── Publicación ──────────────────────────────────────────────────────────
 

@@ -55,6 +55,12 @@ class WaypointManager(Node):
         self.declare_parameter('loop', True)
         self.declare_parameter('dwell_time', 1.0)
         self.declare_parameter('publish_period', 1.0)
+        # Delay inicial antes de publicar el primer /goal. Durante esos
+        # segundos las banderas y la ruta ya se ven en RViz y Gazebo, pero
+        # el robot no recibe goal (luego está quieto). Sirve para que el
+        # stack (Gazebo + camera + EKF + bridge) esté plenamente arriba
+        # antes de empezar a moverse.
+        self.declare_parameter('startup_delay', 5.0)
 
         flat = list(self.get_parameter('waypoints').value)
         if len(flat) < 8 or len(flat) % 2 != 0:
@@ -69,10 +75,14 @@ class WaypointManager(Node):
         self.loop = bool(self.get_parameter('loop').value)
         self.dwell_time = float(self.get_parameter('dwell_time').value)
         period = float(self.get_parameter('publish_period').value)
+        self.startup_delay = float(self.get_parameter('startup_delay').value)
 
         self.idx = 0
         self.state = _State.RUNNING
         self.dwell_started_at = None
+        # Reloj de arranque para el startup delay.
+        self._t0 = self.get_clock().now()
+        self._startup_logged = False
 
         self.pub_goal = self.create_publisher(Point, 'goal', 10)
         self.pub_state = self.create_publisher(String, 'waypoint_manager/state', 10)
@@ -124,6 +134,18 @@ class WaypointManager(Node):
     def _publish_current_goal(self):
         if self.state == _State.FINISHED:
             return
+        # Startup delay: durante los primeros N segundos NO publicamos el
+        # goal todavía. Las banderas/ruta sí se ven (los markers se
+        # publican igual desde _tick → _publish_markers), pero el Bug
+        # se queda quieto porque no tiene goal.
+        elapsed = (self.get_clock().now() - self._t0).nanoseconds * 1e-9
+        if elapsed < self.startup_delay:
+            if not self._startup_logged:
+                self.get_logger().info(
+                    f'Waiting {self.startup_delay:.1f}s before publishing '
+                    f'first goal (stack warmup)…')
+                self._startup_logged = True
+            return
         x, y = self.waypoints[self.idx]
         self.pub_goal.publish(Point(x=x, y=y, z=0.0))
 
@@ -132,40 +154,105 @@ class WaypointManager(Node):
         self.pub_state.publish(String(data=tag))
 
     def _publish_markers(self):
+        """Publica banderas estilo Gazebo en RViz para cada waypoint.
+
+        Cada bandera = disco verde en el suelo + poste blanco + esfera
+        verde grande en la cima + label "WP0..3" flotante. El waypoint
+        activo se pinta naranja brillante y un poco más grande para que
+        sea evidente cuál está sirviendo el manager ahora.
+        """
         ma = MarkerArray()
         now = self.get_clock().now().to_msg()
 
-        for i, (x, y) in enumerate(self.waypoints):
-            m = Marker()
-            m.header.frame_id = self.frame_id
-            m.header.stamp = now
-            m.ns = 'waypoints'
-            m.id = i
-            m.type = Marker.SPHERE
-            m.action = Marker.ADD
-            m.pose.position.x = x
-            m.pose.position.y = y
-            m.pose.position.z = 0.05
-            m.scale.x = m.scale.y = m.scale.z = 0.18
-            if i == self.idx and self.state != _State.FINISHED:
-                m.color.r, m.color.g, m.color.b, m.color.a = 1.0, 0.5, 0.0, 1.0
-            else:
-                m.color.r, m.color.g, m.color.b, m.color.a = 0.0, 0.6, 1.0, 0.8
-            ma.markers.append(m)
+        GREEN = (0.10, 0.85, 0.20, 1.0)
+        GREEN_DIM = (0.10, 0.65, 0.20, 0.85)
+        ORANGE = (1.00, 0.55, 0.05, 1.0)
 
+        for i, (x, y) in enumerate(self.waypoints):
+            active = (i == self.idx and self.state != _State.FINISHED)
+            color = ORANGE if active else GREEN if i == 0 else GREEN_DIM
+
+            # 1) Disco en el suelo (marca el punto exacto del goal).
+            disc = Marker()
+            disc.header.frame_id = self.frame_id
+            disc.header.stamp = now
+            disc.ns = 'wp_disc'
+            disc.id = i
+            disc.type = Marker.CYLINDER
+            disc.action = Marker.ADD
+            disc.pose.position.x = x
+            disc.pose.position.y = y
+            disc.pose.position.z = 0.005
+            disc.scale.x = disc.scale.y = 0.36
+            disc.scale.z = 0.01
+            disc.color.r, disc.color.g, disc.color.b, disc.color.a = color
+            ma.markers.append(disc)
+
+            # 2) Poste blanco delgado.
+            post = Marker()
+            post.header.frame_id = self.frame_id
+            post.header.stamp = now
+            post.ns = 'wp_post'
+            post.id = i
+            post.type = Marker.CYLINDER
+            post.action = Marker.ADD
+            post.pose.position.x = x
+            post.pose.position.y = y
+            post.pose.position.z = 0.25
+            post.scale.x = post.scale.y = 0.025
+            post.scale.z = 0.50
+            post.color.r, post.color.g, post.color.b, post.color.a = (
+                0.95, 0.95, 0.95, 1.0)
+            ma.markers.append(post)
+
+            # 3) Esfera grande arriba del poste (la "bandera").
+            ball = Marker()
+            ball.header.frame_id = self.frame_id
+            ball.header.stamp = now
+            ball.ns = 'wp_ball'
+            ball.id = i
+            ball.type = Marker.SPHERE
+            ball.action = Marker.ADD
+            ball.pose.position.x = x
+            ball.pose.position.y = y
+            ball.pose.position.z = 0.55
+            r = 0.20 if active else 0.16
+            ball.scale.x = ball.scale.y = ball.scale.z = r
+            ball.color.r, ball.color.g, ball.color.b, ball.color.a = color
+            ma.markers.append(ball)
+
+            # 4) Label flotante "WP0", "WP1", etc.
+            label = Marker()
+            label.header.frame_id = self.frame_id
+            label.header.stamp = now
+            label.ns = 'wp_label'
+            label.id = i
+            label.type = Marker.TEXT_VIEW_FACING
+            label.action = Marker.ADD
+            label.pose.position.x = x
+            label.pose.position.y = y
+            label.pose.position.z = 0.85
+            label.scale.z = 0.20
+            label.color.r, label.color.g, label.color.b, label.color.a = (
+                1.0, 1.0, 1.0, 1.0)
+            label.text = f'WP{i}' + (' ◄ active' if active else '')
+            ma.markers.append(label)
+
+        # 5) Línea que une los waypoints en orden, para ver la ruta cerrada.
         line = Marker()
         line.header.frame_id = self.frame_id
         line.header.stamp = now
-        line.ns = 'waypoints'
-        line.id = 1000
+        line.ns = 'wp_path'
+        line.id = 0
         line.type = Marker.LINE_STRIP
         line.action = Marker.ADD
-        line.scale.x = 0.03
-        line.color.r, line.color.g, line.color.b, line.color.a = 0.0, 0.6, 1.0, 0.6
+        line.scale.x = 0.04
+        line.color.r, line.color.g, line.color.b, line.color.a = (
+            0.10, 0.85, 0.20, 0.55)
         pts = list(self.waypoints) + ([self.waypoints[0]] if self.loop else [])
         for x, y in pts:
             p = Point()
-            p.x, p.y, p.z = x, y, 0.02
+            p.x, p.y, p.z = x, y, 0.04
             line.points.append(p)
         ma.markers.append(line)
 

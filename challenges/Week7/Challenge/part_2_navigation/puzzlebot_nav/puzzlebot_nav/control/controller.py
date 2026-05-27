@@ -64,6 +64,10 @@ class PositionController(Node):
         # ── Bandera para enviar "llegué" solo una vez por objetivo ────────────
         # Evita spam de True en el tópico next_point cuando el robot se detiene.
         self.goal_reached_sent = False
+        # Bandera: true cuando llegó el primer /set_point del bug.
+        # Sin esto, el control_loop arranca con target=(0,0) y pose=(spawn) y
+        # manda cmd_vel girando en sitio → "círculo" en RViz al inicio.
+        self._setpoint_received = False
 
         # ── Comunicación ROS 2 ────────────────────────────────────────────────
         self.sub_odom   = self.create_subscription(
@@ -118,6 +122,7 @@ class PositionController(Node):
         # En refinamientos chicos solo actualizamos target sin tocar PID.
 
         self.goal_reached_sent = False
+        self._setpoint_received = True
         self.set_parameters([
             rclpy.parameter.Parameter('target_x', rclpy.Parameter.Type.DOUBLE, msg.x),
             rclpy.parameter.Parameter('target_y', rclpy.Parameter.Type.DOUBLE, msg.y),
@@ -127,6 +132,13 @@ class PositionController(Node):
 
     def _control_loop(self):
         """Calcula y publica el comando de velocidad en cada ciclo."""
+
+        # Hasta que el bug nos mande un set_point real, NO publicamos
+        # cmd_vel. Sin esta guard, el controller arranca con target=(0,0)
+        # y la pose del spawn → manda omega para girar hacia el origen,
+        # produciendo el "círculo en RViz" en los primeros segundos.
+        if not self._setpoint_received:
+            return
 
         # Leer parámetros en cada ciclo (permiten ajuste en caliente)
         tx    = self.get_parameter('target_x').value

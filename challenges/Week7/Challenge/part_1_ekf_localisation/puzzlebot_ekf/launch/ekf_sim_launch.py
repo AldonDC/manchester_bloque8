@@ -71,10 +71,11 @@ def generate_launch_description():
         'world', default_value='ekf_arena.world',
         description='Default: custom enclosed arena. Use puzzlebot_aruco_markers.world '
                     'for the MCR2-shipped flat-floor variant.')
-    # Robot DENTRO del laberinto en (0.6, 0.8) mirando norte (yaw=pi/2).
-    # marker_1 está directamente al frente en (0.6, 1.92) a 1.12 m,
-    # centrado en el FOV. El robot ve el ArUco patrón nítido al arrancar.
-    declare_x = DeclareLaunchArgument('x', default_value='0.6')
+    # Robot DENTRO del laberinto en (0.9, 0.8) mirando norte (yaw=pi/2).
+    # marker_1 (0.6, 1.92) queda al frente-izquierda ~17° y marker_2
+    # (4.4, 1.92) en periferia derecha. Pivoteando ligeramente el robot
+    # ve ambos.
+    declare_x = DeclareLaunchArgument('x', default_value='0.9')
     declare_y = DeclareLaunchArgument('y', default_value='0.8')
     declare_yaw = DeclareLaunchArgument('yaw', default_value='1.5708')
 

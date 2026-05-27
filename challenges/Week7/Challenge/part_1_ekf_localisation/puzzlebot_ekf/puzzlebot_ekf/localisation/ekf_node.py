@@ -117,11 +117,24 @@ class EKFNode(Node):
         self.wr = 0.0
         self.wl = 0.0
 
+        # ── Evaluation metrics state ──────────────────────────────────────────
+        # Para el PDF Part 1: error vs ground truth, trace(P), conteos de
+        # updates/rejects por marker. Se imprime cada 1s en _metrics_tick().
+        self._t0 = self.get_clock().now().nanoseconds * 1e-9
+        self._gt = None                          # último ground_truth
+        self._updates = {}                       # marker_id -> count aceptados
+        self._rejects = {}                       # marker_id -> count rechazados
+        self._last_obs_ids = []                  # ids vistos en el último _aruco_cb
+
         # ── ROS plumbing ──────────────────────────────────────────────────────
         self.create_subscription(Float32, 'wr', self._wr_cb, 10)
         self.create_subscription(Float32, 'wl', self._wl_cb, 10)
         self.create_subscription(PoseArray, 'aruco/observations',
                                  self._aruco_cb, 10)
+        # Ground truth para calcular el error de localización (PDF Part 1:
+        # "métricas de evaluación de su algoritmo para verificar robustez").
+        self.create_subscription(Odometry, 'ground_truth',
+                                 self._gt_cb, 10)
         self.pub_odom = self.create_publisher(Odometry, 'ekf/odom', 10)
         self.pub_state = self.create_publisher(String, 'ekf/state', 10)
         self.pub_map = self.create_publisher(MarkerArray, 'ekf/aruco_map', 10)
@@ -133,6 +146,8 @@ class EKFNode(Node):
         # Republish the known marker map once a second so RViz picks it up
         # even after a late join. Cheap (small array).
         self.map_timer = self.create_timer(1.0, self._publish_map_markers)
+        # Métricas cada 1 s en la terminal.
+        self.metrics_timer = self.create_timer(1.0, self._metrics_tick)
 
         self.get_logger().info(
             f'EKF up | model={self.model_name} | dt={self.dt}s | '
@@ -156,11 +171,23 @@ class EKFNode(Node):
         if stamp > 0.0 and (now - stamp) > self.max_age:
             return  # stale, drop it
 
+        ids_now = []
         for pose in msg.poses:
             marker_id = int(round(pose.position.x))
             z0 = float(pose.position.y)
             z1 = float(pose.position.z)
+            ids_now.append(marker_id)
             self._correct(marker_id, np.array([z0, z1], dtype=float))
+        self._last_obs_ids = ids_now
+
+    def _gt_cb(self, msg: Odometry):
+        """Cache ground-truth pose for periodic error metric."""
+        q = msg.pose.pose.orientation
+        # yaw from (z, w) — la odometría del simulador es plana.
+        yaw = 2.0 * math.atan2(q.z, q.w)
+        self._gt = (msg.pose.pose.position.x,
+                    msg.pose.pose.position.y,
+                    yaw)
 
     # ───────────────────────────────────────────────────────────────────────
     # EKF steps
@@ -210,6 +237,7 @@ class EKFNode(Node):
         # Mahalanobis gating: reject outliers (occluded / mis-detected marker)
         d2 = float(y.T @ S_inv @ y)
         if d2 > self.gate:
+            self._rejects[marker_id] = self._rejects.get(marker_id, 0) + 1
             self.pub_state.publish(
                 String(data=f'reject:id={marker_id}:d2={d2:.2f}'))
             return
@@ -228,8 +256,47 @@ class EKFNode(Node):
         # Joseph form would be more numerically stable; for 3x3 the simple
         # form is fine in practice and easier to read.
 
+        self._updates[marker_id] = self._updates.get(marker_id, 0) + 1
         self.pub_state.publish(
             String(data=f'update:id={marker_id}:d2={d2:.2f}'))
+
+    # ───────────────────────────────────────────────────────────────────────
+    # Metrics (PDF Part 1: "evaluation metrics to verify robustness")
+    # ───────────────────────────────────────────────────────────────────────
+
+    def _metrics_tick(self):
+        """Imprime cada 1 s las métricas de evaluación del EKF.
+
+        Formato:
+            t=12.3s  pose=(x, y, yaw_deg)  gt=(x, y, yaw_deg)
+                     err_xy=0.024m  err_yaw=1.8°  trace(P)=0.0031
+                     obs=[1,2]  upd={1:53,2:11}  rej={1:0,2:1}
+        """
+        t = self.get_clock().now().nanoseconds * 1e-9 - self._t0
+        x, y, yaw = float(self.x[0]), float(self.x[1]), float(self.x[2])
+        trace_p = float(np.trace(self.P))
+
+        if self._gt is not None:
+            gx, gy, gyaw = self._gt
+            err_xy = math.hypot(x - gx, y - gy)
+            err_yaw = math.degrees(wrap_to_pi(yaw - gyaw))
+            gt_str = (f'gt=({gx:+.2f}, {gy:+.2f}, '
+                      f'{math.degrees(gyaw):+6.1f}°)')
+            err_str = f'err_xy={err_xy:.3f}m  err_yaw={err_yaw:+5.1f}°'
+        else:
+            gt_str = 'gt=N/A'
+            err_str = 'err=N/A'
+
+        obs = ','.join(str(i) for i in self._last_obs_ids) or '-'
+        upd = '{' + ','.join(f'{k}:{v}' for k, v in sorted(self._updates.items())) + '}'
+        rej = '{' + ','.join(f'{k}:{v}' for k, v in sorted(self._rejects.items())) + '}'
+
+        self.get_logger().info(
+            f't={t:5.1f}s  pose=({x:+.2f}, {y:+.2f}, '
+            f'{math.degrees(yaw):+6.1f}°)  {gt_str}  '
+            f'{err_str}  trace(P)={trace_p:.4f}  '
+            f'obs=[{obs}]  upd={upd}  rej={rej}'
+        )
 
     # ───────────────────────────────────────────────────────────────────────
     # Output

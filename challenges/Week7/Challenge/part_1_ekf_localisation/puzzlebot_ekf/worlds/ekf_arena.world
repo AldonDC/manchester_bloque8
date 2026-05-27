@@ -285,5 +285,29 @@
       <pose>4.4 2.08 0.30 0 0 1.5708</pose>
     </include>
 
+    <!-- ── Waypoints de Part 2 (banderas verdes visibles en Gazebo) ────
+         4 puntos de la trayectoria cerrada del PDF. Solo visual: no
+         tienen collision, no afectan al LiDAR ni a la navegación. -->
+    <include>
+      <name>wp0_flag</name>
+      <uri>model://goal_flag</uri>
+      <pose>2.0 0.5 0 0 0 0</pose>
+    </include>
+    <include>
+      <name>wp1_flag</name>
+      <uri>model://goal_flag</uri>
+      <pose>4.7 2.0 0 0 0 0</pose>
+    </include>
+    <include>
+      <name>wp2_flag</name>
+      <uri>model://goal_flag</uri>
+      <pose>2.0 3.5 0 0 0 0</pose>
+    </include>
+    <include>
+      <name>wp3_flag</name>
+      <uri>model://goal_flag</uri>
+      <pose>-0.5 2.5 0 0 0 0</pose>
+    </include>
+
   </world>
 </sdf>

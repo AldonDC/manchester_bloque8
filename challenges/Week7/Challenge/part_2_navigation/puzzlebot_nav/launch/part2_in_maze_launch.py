@@ -21,7 +21,8 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                             TimerAction, SetEnvironmentVariable)
+                             OpaqueFunction, TimerAction,
+                             SetEnvironmentVariable)
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
@@ -39,10 +40,12 @@ def generate_launch_description():
     # Disable ~/.local so apt numpy 1.21 wins over pyenv's numpy 2.x.
     no_user_site = SetEnvironmentVariable(name='PYTHONNOUSERSITE', value='1')
 
-    # Robot spawns inside the maze, same spot as Part 1's default.
-    declare_x = DeclareLaunchArgument('x',   default_value='1.95')
-    declare_y = DeclareLaunchArgument('y',   default_value='2.0')
-    declare_yaw = DeclareLaunchArgument('yaw', default_value='0.0')
+    # Robot spawns inside the maze, mismo spot que Part 1.
+    # (0.9, 0.8) está en el corredor sur, ligeramente a la derecha del
+    # muro divisorio iv2_west (x=0.5). Mirando norte (yaw=pi/2).
+    declare_x = DeclareLaunchArgument('x',   default_value='0.9')
+    declare_y = DeclareLaunchArgument('y',   default_value='0.8')
+    declare_yaw = DeclareLaunchArgument('yaw', default_value='1.5708')
     declare_bug = DeclareLaunchArgument(
         'bug', default_value='bug2',
         description="Reactive nav algorithm: 'bug0' or 'bug2'")
@@ -73,13 +76,23 @@ def generate_launch_description():
     lidar = Node(package=nav_pkg, executable='lidar_processor',
                  name='lidar_processor', output='screen', parameters=common)
 
-    loc = Node(package=nav_pkg, executable='localisation',
-               name='localisation', output='screen',
-               parameters=common + [{
-                   'x_init': LaunchConfiguration('x'),
-                   'y_init': LaunchConfiguration('y'),
-                   'theta_init': LaunchConfiguration('yaw'),
-               }])
+    # `localisation` lee x_init/y_init/theta_init como DOUBLES. Si los
+    # pasamos como LaunchConfiguration (string) ROS 2 los ignora y deja
+    # los defaults en 0.0 → la odometría arranca en (0,0,0) pero el
+    # robot está en (0.6, 0.8, π/2) → el Bug ve el goal en la dirección
+    # equivocada y el controller gira en círculo. Resolvemos con un
+    # OpaqueFunction que materializa los valores como floats reales.
+    def _make_loc(context):
+        return [Node(
+            package=nav_pkg, executable='localisation', name='localisation',
+            output='screen',
+            parameters=common + [{
+                'x_init':     float(LaunchConfiguration('x').perform(context)),
+                'y_init':     float(LaunchConfiguration('y').perform(context)),
+                'theta_init': float(LaunchConfiguration('yaw').perform(context)),
+            }],
+        )]
+    loc = OpaqueFunction(function=_make_loc)
 
     coord_tf = Node(package=nav_pkg, executable='coordinate_transform',
                     name='coordinate_transform', output='screen',
@@ -115,9 +128,16 @@ def generate_launch_description():
     rviz = Node(package='rviz2', executable='rviz2',
                 arguments=['-d', rviz_cfg], output='screen', parameters=common)
 
-    # Delay the whole stack ~8 s so /clock + bridge are up first.
+    # Arrancamos todo el stack a la vez tras 5 s (suficiente para que
+    # /clock y los bridges Gazebo↔ROS estén publicando). Combinado con el
+    # `startup_delay=5.0` del waypoint_manager, queda así:
+    #   t = 0 s   ros2 launch
+    #   t = 3 s   spawn del robot en Gazebo, RViz aún cargando
+    #   t = 5 s   bug, manager, EKF, RViz, banderas todos arriba
+    #   t =10 s   waypoint_manager publica el primer /goal → el robot arranca
+    # El bug además espera a tener /odom y /scan reales antes de moverse.
     delayed = TimerAction(
-        period=8.0,
+        period=5.0,
         actions=[static_tf, wheels, lidar, loc, coord_tf,
                  wpm, controller, bug, world_viz, rviz],
     )

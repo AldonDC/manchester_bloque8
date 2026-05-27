@@ -123,9 +123,29 @@ export_render_env() {
 # Launchers
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── Resumen del escenario fijo (ekf_arena.world) ─────────────────────────────
+print_scenario_summary() {
+    echo -e "  ${C_DIM}World:${C_RESET}   ekf_arena.world (laberinto 7×6 m)"
+    echo -e "  ${C_DIM}Spawn:${C_RESET}   x=0.9  y=0.8  yaw=π/2  (corredor sur, mirando norte)"
+    echo -e "  ${C_DIM}ArUcos:${C_RESET}  4 markers (id 0,1,2,3) en el muro divisorio central (y=2.0)"
+    echo -e "                    id=1 (0.6,1.92) ◄ frente al robot al spawn"
+    echo -e "                    id=2 (4.4,1.92) ◄ extremo este del corredor sur"
+    echo -e "                    id=0 (0.6,2.08) ◄ extremo oeste del corredor norte"
+    echo -e "                    id=3 (4.4,2.08) ◄ extremo este del corredor norte"
+    echo
+}
+
 # Part 1 — EKF Localisation: Gazebo + laberinto + cámara + ArUcos + EKF + RViz
 launch_part1() {
     section "PART 1 · EKF Localisation con ArUcos"
+    print_scenario_summary
+    info "Topics útiles:"
+    echo "  /ekf/odom              ← pose estimada (EKF)"
+    echo "  /ekf/covariance_ellipse ← elipse 99% en RViz"
+    echo "  /aruco/observations    ← detecciones ArUco"
+    echo "  /aruco/image           ← cámara con overlay (panel RViz)"
+    echo "  /ground_truth          ← pose real del simulador"
+    echo
     info "Limpiando procesos previos..."
     kill_leftovers
     export_render_env
@@ -136,6 +156,12 @@ launch_part1() {
 # Part 1 con demo automática (escenarios del PDF: multi/no/partial marker)
 launch_part1_demo() {
     section "PART 1 · EKF + Demo automática (escenarios del PDF)"
+    print_scenario_summary
+    info "Demo automática: el robot recorre 3 escenarios del PDF"
+    echo "  1) multi-marker  · varios markers visibles a la vez"
+    echo "  2) no-marker     · solo odometría (la elipse crece)"
+    echo "  3) partial       · un marker entra/sale del FOV"
+    echo
     info "Limpiando procesos previos..."
     kill_leftovers
     export_render_env
@@ -147,10 +173,18 @@ launch_part1_demo() {
 launch_part2() {
     local bug="${1:-bug2}"
     section "PART 2 · Multi-waypoint (${bug^^}) en el laberinto"
+    print_scenario_summary
+    info "Waypoints (trayectoria cerrada, en loop):"
+    echo "  p0 (2.0, 0.5)  ← sur del muro divisorio, entre iv2 e iv3"
+    echo "  p1 (4.7, 2.0)  ← corredor este, junto a la pared exterior"
+    echo "  p2 (2.0, 3.5)  ← norte del muro divisorio, entre iv1 e iv4"
+    echo "  p3 (-0.5, 2.5) ← corredor oeste, junto a la pared exterior"
+    echo
+    info "El robot circumnavega los 4 cuartos interiores usando ${bug^^}."
     info "Limpiando procesos previos..."
     kill_leftovers
     export_render_env
-    info "4 waypoints en trayectoria cerrada. Ctrl+C para detener."
+    info "Lanzando... (Ctrl+C para detener)"
     ros2 launch "$PKG_NAV" part2_in_maze_launch.py bug:="$bug"
 }
 
