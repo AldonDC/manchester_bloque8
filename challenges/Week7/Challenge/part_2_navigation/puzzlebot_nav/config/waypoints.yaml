@@ -1,0 +1,50 @@
+waypoint_manager:
+  ros__parameters:
+    # Closed trajectory with 4 waypoints, satisfies all PDF Part 2 constraints:
+    #   - >=4 target points (we have 4)
+    #   - NO straight (axis-aligned) paths between consecutive points
+    #     (every leg has both dx != 0 AND dy != 0)
+    #   - NO two consecutive legs in the same direction
+    #     (each waypoint forces a real heading change)
+    #   - Waypoints spaced ~2 m apart so obstacles in bug_medium.world
+    #     fall between them and the robot has to circumnavigate.
+    #
+    # Trajectory (closed loop):
+    #                    y
+    #                    |
+    #              p2 (-1.0, +2.0)
+    #                  \
+    #                   \
+    #                    p1 (+2.0, +1.5)
+    #                   /
+    #                  /
+    #             ROBOT(0,0)
+    #                  \
+    #                   \
+    #                    p0 (+2.0, -1.0)
+    #                   /
+    #                  /
+    #              p3 (-1.5, +0.5)
+    #
+    # Legs:
+    #   p0 -> p1:  dx=0,    dy=+2.5  -> vertical  X
+    # That violates the "no straight" rule, so we offset p1 slightly:
+    #   p0 (+2.0, -1.0)  -> p1 (+1.5, +1.5)   dx=-0.5  dy=+2.5  diagonal
+    #   p1 (+1.5, +1.5)  -> p2 (-1.0, +2.0)   dx=-2.5  dy=+0.5  diagonal (heading change ~75deg)
+    #   p2 (-1.0, +2.0)  -> p3 (-1.5, +0.5)   dx=-0.5  dy=-1.5  diagonal (heading change ~80deg)
+    #   p3 (-1.5, +0.5)  -> p0 (+2.0, -1.0)   dx=+3.5  dy=-1.5  diagonal (heading change ~110deg)
+    #
+    # No leg is axis-aligned, no two consecutive legs share a heading.
+    waypoints:
+      - 2.0    # p0_x
+      - -1.0   # p0_y
+      - 1.5    # p1_x
+      - 1.5    # p1_y
+      - -1.0   # p2_x
+      - 2.0    # p2_y
+      - -1.5   # p3_x
+      - 0.5    # p3_y
+    frame_id: 'odom'
+    loop: true
+    dwell_time: 1.5
+    publish_period: 1.0

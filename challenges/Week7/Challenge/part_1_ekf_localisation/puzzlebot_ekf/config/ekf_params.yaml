@@ -1,0 +1,67 @@
+ekf_node:
+  ros__parameters:
+    # Robot geometry (Puzzlebot, same as Week 5/6).
+    wheel_radius: 0.05
+    wheelbase: 0.19
+    sample_time: 0.02
+
+    # Initial belief — NOT defined here on purpose. The launch file passes
+    # x_init / y_init / theta_init as floats matching the Gazebo spawn pose
+    # so the EKF starts aligned with the simulator. If we set them here too,
+    # the YAML overrides the launch values on some ROS 2 versions and the
+    # EKF ends up at (0, 0, 0) while Gazebo has the robot elsewhere — that
+    # was the "RViz arrow in the wrong place" bug.
+
+    # Process noise: per-wheel proportional gains (Week 5).
+    # Tune up if the filter is over-confident, down if observations are
+    # being ignored.
+    k_r: 0.05
+    k_l: 0.05
+
+    # Observation model: 'range_bearing' (default) or 'cartesian'.
+    # See docs/observation_models.md for the comparison.
+    observation_model: 'range_bearing'
+
+    # Measurement noise (only the ones matching the active model are used).
+    sigma_range: 0.04      # [m]
+    sigma_bearing: 0.035   # [rad]   ~2 deg
+    sigma_xy: 0.04         # [m]   for the cartesian model
+
+    # Outlier rejection. chi2(2 dof, 99 %) = 9.21.
+    # Lower it to be stricter (more rejections, less drift recovery).
+    mahalanobis_gate: 9.21
+
+    # Drop observations older than this (sec) — protects against bag replay
+    # latency spikes and stale frames from a slow camera.
+    max_observation_age_s: 0.5
+
+aruco_detector:
+  ros__parameters:
+    # MCR2-shipped marker models in puzzlebot_aruco_markers.world use
+    # the 4x4_50 dictionary. If you regenerate markers, update both this
+    # and the textures in puzzlebot_gazebo/models/aruco_marker_*.
+    aruco_dict: '4x4_50'
+    # 18 cm physical side (per model.sdf <box><size>0.001 0.18 0.18</size>).
+    marker_length: 0.18
+    publish_debug_image: true
+
+    # Camera mount on the Puzzlebot (matches puzzlebot_jetson_lidar_ed.xacro).
+    # Update if the URDF changes.
+    cam_x_in_robot: 0.08
+    cam_y_in_robot: 0.0
+    cam_z_in_robot: 0.10
+    cam_yaw_in_robot: 0.0
+
+    # Leave empty in simulation to seed K, D from /camera/camera_info.
+    # On the real robot, set the absolute path to the calibration YAML
+    # produced by calibration/CameraCal.py.
+    camera_intrinsics_yaml: ''
+
+covariance_publisher:
+  ros__parameters:
+    frame_id: 'odom'
+    chi2: 5.991            # 95 % confidence, 2 dof
+    z_offset: 0.02
+    keep_trail: true
+    trail_length: 60
+    trail_period_s: 0.5

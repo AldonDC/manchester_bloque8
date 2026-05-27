@@ -1,0 +1,42 @@
+<?xml version='1.0'?>
+<sdf version="1.4">
+    <model name="plywood_panel">
+        <static>true</static>
+
+        <link name="main">
+            <pose>0 0 0 0 0 0</pose>
+            <collision name="collision">
+                <pose>0.0 -0.5 0.3 -1.571 0 -1.571</pose>
+                <geometry>
+                    <box>
+                        <size>0.98 0.6 0.02</size>
+                    </box>
+                </geometry>
+            </collision>
+
+            <visual name="visual">
+                <!-- Same pose and box dimensions as the collision shape so
+                     the visual aligns exactly with the physical panel.
+                     Original visual used plywood.dae (Collada with <blinn>
+                     fixed-function materials) which Ogre2 in Gazebo
+                     Harmonic rejects. The cascade of exceptions blocked
+                     the robot's own visuals from attaching to the scene
+                     ("Puzzlebot" frame label visible but body missing).
+                     A simple box with PBR-compatible material renders
+                     cleanly and looks like plain plywood. -->
+                <pose>0.0 -0.5 0.3 -1.571 0 -1.571</pose>
+                <geometry>
+                    <box>
+                        <size>0.98 0.6 0.02</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0.62 0.48 0.28 1</ambient>
+                    <diffuse>0.78 0.62 0.38 1</diffuse>
+                    <specular>0.10 0.08 0.05 1</specular>
+                </material>
+            </visual>
+        </link>
+
+    </model>
+</sdf>

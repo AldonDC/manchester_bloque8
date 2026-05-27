@@ -1,0 +1,9 @@
+# ArUco map for ekf_arena.world. Markers despegados 5 cm de las paredes
+# interiores ih2_left/right (la divisoria central en y=2.0). Visibles
+# desde el corredor central donde spawnea el robot.
+# id -> (x, y, yaw) [m, rad]
+markers:
+  1: { x: 0.6, y: 1.92, yaw: -1.5708 }   # ih2_left  cara sur  (mira -Y)
+  2: { x: 4.4, y: 1.92, yaw: -1.5708 }   # ih2_right cara sur  (mira -Y)
+  0: { x: 0.6, y: 2.08, yaw:  1.5708 }   # ih2_left  cara norte (mira +Y)
+  3: { x: 4.4, y: 2.08, yaw:  1.5708 }   # ih2_right cara norte (mira +Y)
