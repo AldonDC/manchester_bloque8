@@ -58,8 +58,17 @@ class LidarProcessor(Node):
         self.pub_left  = self.create_publisher(Float32, 'bug/d_left',  10)
         self.pub_right = self.create_publisher(Float32, 'bug/d_right', 10)
 
+        # QoS depth=1 + BEST_EFFORT: solo nos importa el scan más reciente.
+        # Los scans viejos no sirven para nav reactiva (la situación cambió).
+        # BEST_EFFORT permite a ROS descartar mensajes bajo carga sin acumular.
+        from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+        scan_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+        )
         self.sub_scan = self.create_subscription(
-            LaserScan, 'scan', self._scan_callback, 10)
+            LaserScan, 'scan', self._scan_callback, scan_qos)
 
         self.get_logger().info(
             f'Lidar processor activo | front=±{math.degrees(self.front_hw):.0f}° '

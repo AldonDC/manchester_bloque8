@@ -125,23 +125,28 @@ launch_bug() {
     info "Despertando driver gráfico..."
     ensure_gpu_ready
 
-    # Forzar el uso EXCLUSIVO de la iGPU Intel.
+    # Rendering por SOFTWARE (llvmpipe).
     #
-    # Diagnóstico: en esta máquina el driver NVIDIA está en mal estado
-    # (`nvidia-smi` reporta "No devices were found", forzar GLX_VENDOR=nvidia
-    # tira BadValue). La iGPU Intel funciona bien. Mientras NVIDIA no se
-    # arregle, usar Intel es lo único que carga RViz y Gazebo de forma
-    # estable.
+    # Estado del hardware en esta máquina:
+    #   * NVIDIA: driver mal configurado, `nvidia-smi` → "No devices found".
+    #   * Intel Alder Lake-P iGPU (PCI 0x28a1): Mesa iris NO la soporta
+    #     ("MESA: warning: Driver does not support the 0x28a1 PCI ID" y
+    #     "libEGL warning: egl: failed to create dri2 screen"). Resultado:
+    #     Gazebo levanta el server pero su GUI Ogre2 nunca consigue un
+    #     contexto GL → el Puzzlebot se spawnea (los topics /scan,
+    #     /joint_states, /ground_truth publican) pero NO se ve en la
+    #     viewport. En RViz sí se ve porque usa Ogre1+glX y aguanta ese
+    #     estado.
     #
-    # Si en el futuro NVIDIA se reinstala/configura bien, basta con
-    # comentar este bloque y descomentar el de PRIME render-offload de
-    # commits anteriores. Para verificar el estado del driver:
-    #     nvidia-smi -L
-    #     glxinfo | grep "OpenGL renderer"
+    # Por eso forzamos llvmpipe (rasterización CPU). Más lento, pero
+    # suficiente para Bug 0/Bug 2 con un diferencial + LiDAR a 50 Hz.
+    # Cuando NVIDIA o iris se arreglen, basta quitar este bloque.
     unset __NV_PRIME_RENDER_OFFLOAD
-    unset __GLX_VENDOR_LIBRARY_NAME
     unset __VK_LAYER_NV_optimus
     export __GLX_VENDOR_LIBRARY_NAME=mesa
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export GALLIUM_DRIVER=llvmpipe
+    export MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
     # Modos tolerantes para Ogre1 (RViz) y Ogre2 (Gazebo).
     export OGRE_RTT_MODE=Copy
     export QT_QPA_PLATFORM=xcb

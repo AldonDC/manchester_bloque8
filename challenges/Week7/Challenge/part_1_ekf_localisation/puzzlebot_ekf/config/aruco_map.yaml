@@ -1,9 +1,42 @@
-# ArUco map for ekf_arena.world. Markers despegados 5 cm de las paredes
-# interiores ih2_left/right (la divisoria central en y=2.0). Visibles
-# desde el corredor central donde spawnea el robot.
+# ArUco map for ekf_arena.world — 10 markers (Sección B opcional).
+#
+# Distribución estratégica:
+#   Markers 0-3: muro divisorio central (y=2.0), cubren corredor central
+#   Markers 4-5: wall_east (x=6.0), cubren WP1 corredor este
+#   Markers 6-7: wall_west (x=-1.0), cubren WP3 corredor oeste
+#   Markers 8-9: wall_north (y=5.0), cubren WP2 corredor norte
+#
+# Cobertura validada: desde CUALQUIER waypoint el robot ve ≥2 markers
+# a ≤2.5m. Eso da redundancia para corrección EKF aunque uno esté
+# ocluido o mal detectado. La oclusión de un marker NO degrada la
+# localización porque otro siempre está disponible.
+#
 # id -> (x, y, yaw) [m, rad]
+# yaw: orientación de la NORMAL del frente del marker (donde está la
+# textura legible). Tiene que coincidir con el yaw del SDF en el world.
 markers:
-  1: { x: 0.6, y: 1.92, yaw: -1.5708 }   # ih2_left  cara sur  (mira -Y)
-  2: { x: 4.4, y: 1.92, yaw: -1.5708 }   # ih2_right cara sur  (mira -Y)
-  0: { x: 0.6, y: 2.08, yaw:  1.5708 }   # ih2_left  cara norte (mira +Y)
-  3: { x: 4.4, y: 2.08, yaw:  1.5708 }   # ih2_right cara norte (mira +Y)
+  # ─ Muro divisorio central (cara sur/norte) ─
+  1: { x: 0.6,   y: 1.92, yaw: -1.5708 }   # ih2_left  cara sur  (mira -Y)
+  2: { x: 4.4,   y: 1.92, yaw: -1.5708 }   # ih2_right cara sur  (mira -Y)
+  0: { x: 0.6,   y: 2.08, yaw:  1.5708 }   # ih2_left  cara norte (mira +Y)
+  3: { x: 4.4,   y: 2.08, yaw:  1.5708 }   # ih2_right cara norte (mira +Y)
+  # ─ wall_east (frente mira al OESTE = -X, yaw=π) ─
+  4: { x: 5.94,  y: 1.0,  yaw:  3.14159 }
+  5: { x: 5.94,  y: 3.0,  yaw:  3.14159 }
+  # ─ wall_west (frente mira al ESTE = +X, yaw=0) ─
+  6: { x: -0.94, y: 1.5,  yaw:  0.0 }
+  7: { x: -0.94, y: 3.0,  yaw:  0.0 }
+  # ─ wall_north (frente mira al SUR = -Y, yaw=-π/2) ─
+  8: { x: 1.0,   y: 4.94, yaw: -1.5708 }
+  9: { x: 4.0,   y: 4.94, yaw: -1.5708 }
+  # ─ DENTRO de cada chamber (visible desde apertura del chamber) ─
+  10: { x:  1.15, y:  4.22, yaw: -1.5708 }  # iv1_top interior, mira SUR
+  11: { x:  1.15, y: -0.22, yaw:  1.5708 }  # iv2_bottom interior, mira NORTE
+  12: { x:  3.85, y: -0.22, yaw:  1.5708 }  # iv3_bottom interior, mira NORTE
+  13: { x:  2.4,  y:  2.08, yaw:  1.5708 }  # Esquina IZQUIERDA de ih2_right
+                                              # (muro divisorio derecho), cara NORTE.
+                                              # Visible centrado desde WP2 mirando sur
+                                              # y desde el gap central. Simétrico a m0.
+# Markers 14-16 ELIMINADOS: estaban embebidos en paredes (mismatch
+# geométrico EKF/realidad). Los 14 originales (0-13) dan cobertura
+# validada: cada tramo del path tiene ≥1 ArUco bien orientado.

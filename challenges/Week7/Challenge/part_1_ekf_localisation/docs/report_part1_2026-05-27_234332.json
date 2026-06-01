@@ -1,0 +1,116 @@
+{
+  "challenge": "Part 1 — EKF Visual Localisation",
+  "timestamp": "2026-05-27T23:43:32",
+  "observation_model": "range_bearing",
+  "config": {
+    "sample_time_s": 0.02,
+    "wheel_radius_m": 0.05,
+    "wheelbase_m": 0.19,
+    "k_r": 0.05,
+    "k_l": 0.05,
+    "mahalanobis_gate": 9.21
+  },
+  "samples": 58,
+  "rmse": {
+    "xy_m": 0.0301,
+    "x_m": 0.0163,
+    "y_m": 0.0253,
+    "yaw_deg": 2.29
+  },
+  "nees": {
+    "mean": 6.521,
+    "expected": 3.0,
+    "in_band_pct": 77.6,
+    "band_chi2_3dof_95": [
+      0.216,
+      9.348
+    ],
+    "consistency": "OPTIMISTIC (covariance too small)"
+  },
+  "aruco_updates": {
+    "accepted": 411,
+    "rejected": 2,
+    "accept_pct": 99.5,
+    "per_marker_accepted": {
+      "1": 411
+    },
+    "per_marker_rejected": {
+      "1": 2
+    }
+  },
+  "phases": {
+    "multi_marker": {
+      "samples": 4,
+      "rmse_xy_m": 0.0082,
+      "rmse_yaw_deg": 0.307,
+      "nees_mean": 1.846,
+      "nees_in_band_pct": 100.0,
+      "updates_accepted": 41,
+      "updates_rejected": 0,
+      "per_marker_accepted": {
+        "1": 41
+      },
+      "trace_P_start": 0.000714,
+      "trace_P_end": 0.000767,
+      "trace_P_growth_ratio": 1.07
+    },
+    "scanning": {
+      "samples": 6,
+      "rmse_xy_m": 0.034,
+      "rmse_yaw_deg": 3.267,
+      "nees_mean": 16.178,
+      "nees_in_band_pct": 33.3,
+      "updates_accepted": 24,
+      "updates_rejected": 0,
+      "per_marker_accepted": {
+        "1": 24
+      },
+      "trace_P_start": 0.000767,
+      "trace_P_end": 0.001663,
+      "trace_P_growth_ratio": 2.17
+    },
+    "no_marker": {
+      "samples": 6,
+      "rmse_xy_m": 0.0678,
+      "rmse_yaw_deg": 5.678,
+      "nees_mean": 28.593,
+      "nees_in_band_pct": 0.0,
+      "updates_accepted": 0,
+      "updates_rejected": 0,
+      "per_marker_accepted": {},
+      "trace_P_start": 0.001663,
+      "trace_P_end": 0.002389,
+      "trace_P_growth_ratio": 1.44
+    },
+    "reacquire": {
+      "samples": 6,
+      "rmse_xy_m": 0.0329,
+      "rmse_yaw_deg": 2.718,
+      "nees_mean": 5.198,
+      "nees_in_band_pct": 66.7,
+      "updates_accepted": 18,
+      "updates_rejected": 2,
+      "per_marker_accepted": {
+        "1": 18
+      },
+      "trace_P_start": 0.002389,
+      "trace_P_end": 0.001896,
+      "trace_P_growth_ratio": 0.79
+    },
+    "final_idle": {
+      "samples": 3,
+      "rmse_xy_m": 0.0173,
+      "rmse_yaw_deg": 0.319,
+      "nees_mean": 1.243,
+      "nees_in_band_pct": 100.0,
+      "updates_accepted": 27,
+      "updates_rejected": 0,
+      "per_marker_accepted": {
+        "1": 27
+      },
+      "trace_P_start": 0.001896,
+      "trace_P_end": 0.001933,
+      "trace_P_growth_ratio": 1.02
+    }
+  }
+}

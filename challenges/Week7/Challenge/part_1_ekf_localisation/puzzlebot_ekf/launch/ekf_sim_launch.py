@@ -112,6 +112,15 @@ def generate_launch_description():
         x_val = float(LaunchConfiguration('x').perform(context))
         y_val = float(LaunchConfiguration('y').perform(context))
         yaw_val = float(LaunchConfiguration('yaw').perform(context))
+        # Carpeta donde el ekf_node escribe el reporte final de métricas.
+        # share = install/puzzlebot_ekf/share/puzzlebot_ekf; el docs/ del
+        # fuente está 6 niveles arriba dentro del árbol del challenge. Si esa
+        # ruta no existe (otra máquina), el nodo cae a cwd/part1_reports.
+        src_docs = os.path.abspath(os.path.join(
+            share, '..', '..', '..', '..',
+            'challenges', 'Week7', 'Challenge',
+            'part_1_ekf_localisation', 'docs'))
+        report_dir = src_docs if os.path.isdir(src_docs) else ''
         override_path = '/tmp/puzzlebot_ekf_init_override.yaml'
         with open(override_path, 'w') as f:
             f.write(
@@ -121,6 +130,7 @@ def generate_launch_description():
                 f'    y_init: {y_val}\n'
                 f'    theta_init: {yaw_val}\n'
                 f"    aruco_map_yaml: '{aruco_map_yaml}'\n"
+                f"    report_dir: '{report_dir}'\n"
             )
         return [Node(
             package=pkg, executable='ekf_node',

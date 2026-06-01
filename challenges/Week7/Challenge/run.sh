@@ -13,8 +13,19 @@
 #      ./run.sh build            ← compila puzzlebot_ekf + puzzlebot_nav
 #      ./run.sh part1            ← Part 1: EKF + ArUcos + RViz
 #      ./run.sh part1-demo       ← Part 1 con demo automática (escenarios PDF)
-#      ./run.sh part2            ← Part 2: 4 waypoints en el laberinto
+#      ./run.sh part1-eval       ← Part 1: evaluación completa (RMSE + NEES)
+#      ./run.sh part2            ← Part 2: 4 waypoints (Bug 2) en el laberinto
+#      ./run.sh part2-bug0       ← Part 2: alternativa con Bug 0
+#      ./run.sh part2-bug1       ← Part 2: Bug 1 (vuelta completa, robusto en cuartos)
+#      ./run.sh part2-goto       ← Part 2: go-to-goal clásico (simple, recomendado PDF)
+#      ./run.sh part2-integrated ← Part 2 + Opcional A + Opcional B (EKF+ArUcos+Nav)
+#      ./run.sh part2-astar      ← Part 2 con A* + Catmull-Rom + Pure Pursuit (PRO)
+#      ./run.sh move             ← teleop manual (con part1/part2 en otra terminal)
 #      ./run.sh clean            ← rm build/install/log y recompila
+#
+#  Variables de entorno:
+#      GPU=1 ./run.sh part2-bug1 ← usa NVIDIA RTX (DEFAULT — RViz/Gazebo a 60 fps)
+#      GPU=0 ./run.sh ...        ← fallback software rendering (lento, debug)
 # =============================================================================
 
 WORKSPACE="/home/alfonso/Documents/8 Semestre/manchester_bloque"
@@ -53,7 +64,24 @@ EOF
 }
 
 # ── Setup ────────────────────────────────────────────────────────────────────
+clean_env_paths() {
+    local cleaned_path=""
+    IFS=':' read -ra ADDR <<< "$PATH"
+    for i in "${ADDR[@]}"; do
+        if [[ "$i" != *".pyenv"* && "$i" != *"miniconda"* && "$i" != *"anaconda"* ]]; then
+            if [[ -z "$cleaned_path" ]]; then
+                cleaned_path="$i"
+            else
+                cleaned_path="$cleaned_path:$i"
+            fi
+        fi
+    done
+    export PATH="$cleaned_path"
+    export PYTHONNOUSERSITE=1
+}
+
 ensure_sourced() {
+    clean_env_paths
     cd "$WORKSPACE" || { err "No accedo al workspace"; exit 1; }
     { source /opt/ros/humble/setup.bash; } 2>/dev/null || true
     if [[ -f "install/setup.bash" ]]; then
@@ -101,19 +129,54 @@ kill_leftovers() {
     sleep 2
 }
 
-# ── Render env (lo que hace Week 6 funcionar en esta máquina) ────────────────
-# Software rendering llvmpipe vía Mesa. Hay que exportarlas en el shell padre
-# ANTES del ros2 launch para que Gazebo + RViz hereden la config.
-# También fuerza el system python (apt) para que numpy 1.21 + cv2 4.5
-# no choquen con el pyenv numpy 2.
+# ── Render env ───────────────────────────────────────────────────────────────
+# Por defecto: software rendering vía llvmpipe (compatible con cualquier máquina
+# pero MUY lento — 5-10 fps en Gazebo).
+# Con GPU=1: usa NVIDIA PRIME render offload (laptops Optimus con NVIDIA + Intel).
+# La tarjeta de Alfonso es RTX 4050 Laptop, así que con GPU=1 los FPS suben
+# de ~6 a ~40-60 en RViz/Gazebo. Verificado con glxinfo:
+#   sin variables  → Intel GT2
+#   con __NV_*=1   → NVIDIA RTX 4050
+# El system python (numpy 1.21 + cv2 4.5) se fuerza igual para no chocar
+# con el pyenv numpy 2.
 export_render_env() {
-    unset __NV_PRIME_RENDER_OFFLOAD 2>/dev/null || true
-    unset __VK_LAYER_NV_optimus     2>/dev/null || true
-    export __GLX_VENDOR_LIBRARY_NAME=mesa
-    export LIBGL_ALWAYS_SOFTWARE=1
-    export GALLIUM_DRIVER=llvmpipe
-    export MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
-    export OGRE_RTT_MODE=Copy
+    # GPU=0 (default): software rendering Mesa/llvmpipe. Funciona SIEMPRE.
+    # GPU=1: PRIME render offload a NVIDIA RTX. Requiere que tu sesión X
+    #   tenga el provider NVIDIA cargado (verifica con `xrandr --listproviders`
+    #   — debes ver "NVIDIA-0" o "modesetting" con sink offload Y source).
+    #   Si NO está cargado (caso típico tras boot Intel-only), RViz/Gazebo
+    #   crashea con "BadValue X_GLXCreateNewContext / Failed to create an
+    #   OpenGL context". Solución: relogear con NVIDIA Prime activado vía
+    #   `sudo prime-select nvidia` o el GUI de NVIDIA Settings.
+    if [[ "${GPU:-0}" == "1" ]]; then
+        # ── NVIDIA RTX (PRIME render offload) ──────────────────────────────
+        export __NV_PRIME_RENDER_OFFLOAD=1
+        export __GLX_VENDOR_LIBRARY_NAME=nvidia
+        export __VK_LAYER_NV_optimus=NVIDIA_only
+        unset LIBGL_ALWAYS_SOFTWARE 2>/dev/null || true
+        unset GALLIUM_DRIVER        2>/dev/null || true
+        unset MESA_LOADER_DRIVER_OVERRIDE 2>/dev/null || true
+        export OGRE_RTT_MODE=Copy
+        ok "GPU mode: NVIDIA RTX 4050 (PRIME offload)"
+        # Verificación rápida: si el provider NVIDIA NO está en la sesión X,
+        # advertimos antes de que crashee RViz.
+        if ! xrandr --listproviders 2>/dev/null | grep -qi 'nvidia'; then
+            warn "Tu sesión X no tiene provider NVIDIA. RViz/Gazebo crashearán."
+            warn "Sal de sesión, elige 'Ubuntu on NVIDIA' en GDM, o ejecuta:"
+            warn "    sudo prime-select nvidia && reboot"
+            warn "Mientras tanto, usa GPU=0 ./run.sh ... (software rendering)."
+        fi
+    else
+        # ── Software rendering (lento pero ESTABLE) ────────────────────────
+        unset __NV_PRIME_RENDER_OFFLOAD 2>/dev/null || true
+        unset __VK_LAYER_NV_optimus     2>/dev/null || true
+        export __GLX_VENDOR_LIBRARY_NAME=mesa
+        export LIBGL_ALWAYS_SOFTWARE=1
+        export GALLIUM_DRIVER=llvmpipe
+        export MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
+        export OGRE_RTT_MODE=Copy
+        ok "Render mode: software (Mesa llvmpipe) — estable"
+    fi
     export QT_QPA_PLATFORM=xcb
     export PYTHONNOUSERSITE=1
     export PATH="/usr/bin:${PATH#"$HOME/.pyenv/shims:"}"
@@ -169,6 +232,36 @@ launch_part1_demo() {
     ros2 launch "$PKG_EKF" ekf_sim_launch.py auto_demo:=true
 }
 
+# Part 1 · evaluación completa para el entregable del PDF.
+# Lanza Part 1 con auto-demo y al terminar (Ctrl+C) el ekf_node imprime el
+# resumen final con RMSE, NEES, conteos de updates/rejects por marker. Una
+# sola ejecución cubre todo lo que pide la Part 1 del PDF.
+launch_part1_eval() {
+    section "PART 1 · EVALUACIÓN COMPLETA (RMSE + NEES + escenarios PDF)"
+    print_scenario_summary
+    info "Esta opción ejecuta lo que pide el PDF Part 1:"
+    echo "  ✓ Detección ArUco + EKF predict/update"
+    echo "  ✓ Transformaciones marker → cam → robot → world"
+    echo "  ✓ Elipse de covarianza 99% en RViz"
+    echo "  ✓ 3 escenarios automáticos (multi / no / partial marker)"
+    echo "  ✓ Métricas en vivo cada 1 s en la terminal"
+    echo "  ✓ Al cerrar con Ctrl+C: RMSE_xy, RMSE_yaw, NEES_mean,"
+    echo "    NEES_in_band%, updates aceptados / rechazados por marker"
+    echo
+    info "Topics que puedes grabar en otra terminal:"
+    echo "  ros2 topic echo /ekf/metrics  ← métricas instantáneas (CSV)"
+    echo "  ros2 bag record /ekf/odom /ground_truth /aruco/observations /ekf/metrics"
+    echo
+    info "Lee docs/JUSTIFICATIONS.md para la defensa de cada decisión."
+    echo
+    info "Limpiando procesos previos..."
+    kill_leftovers
+    export_render_env
+    warn "La demo dura ~45 s. PRESIONA Ctrl+C cuando termine para ver el resumen final."
+    sleep 2
+    ros2 launch "$PKG_EKF" ekf_sim_launch.py auto_demo:=true
+}
+
 # Part 2 — Multi-waypoint nav DENTRO del laberinto de Part 1
 launch_part2() {
     local bug="${1:-bug2}"
@@ -186,6 +279,75 @@ launch_part2() {
     export_render_env
     info "Lanzando... (Ctrl+C para detener)"
     ros2 launch "$PKG_NAV" part2_in_maze_launch.py bug:="$bug"
+}
+
+# ── Part 2 + Opcional A + Opcional B (INTEGRACIÓN FULL) ─────────────────────
+# Lanza el stack completo: Gazebo + Puzzlebot + LiDAR + Cámara + ArUco detector
+# + EKF (Part 1) + Waypoint manager + Navegador (goto_goal o bug) + RViz.
+# La nav usa /ekf/odom (pose corregida) en vez de /odom (encoders crudos):
+# eso es lo que pide la Sección B opcional del PDF.
+launch_part2_integrated() {
+    local bug="${1:-goto_goal}"
+    section "PART 2 INTEGRATED · Nav + EKF + ArUcos (Opcional B)"
+    print_scenario_summary
+    info "Stack completo según arquitectura del PDF:"
+    echo "  [Waypoints]  → [${bug}]  → /cmd_vel → Gazebo"
+    echo "  [LiDAR]      → [lidar_processor] → bug/d_front,left,right"
+    echo "  [Camera]     → [aruco_detector] → /aruco/observations"
+    echo "  [Encoders]   → [EKF (Part 1)] → /ekf/odom ← USA ESTO LA NAV"
+    echo "  [ArUco map]  → EKF"
+    echo
+    info "Waypoints (trayectoria cerrada, en loop):"
+    echo "  p0 (1.9, 0.0)  ← centro corredor sur, alineado al gap"
+    echo "  p1 (5.2, 2.0)  ← corredor este, a altura del gap"
+    echo "  p2 (1.9, 4.7)  ← centro corredor norte"
+    echo "  p3 (-0.5, 2.0) ← corredor oeste"
+    echo
+    info "ArUco markers (mapa fijo de Part 1):"
+    echo "  id=0,1,2,3 en el muro divisorio central (y=2.0)"
+    info "Topics útiles para grabar en otra terminal:"
+    echo "  ros2 topic echo /ekf/odom           ← pose corregida"
+    echo "  ros2 topic echo /aruco/observations ← detecciones ArUco"
+    echo "  ros2 topic echo /waypoint_manager/state"
+    echo "  ros2 topic echo /bug/state          ← estado FSM"
+    echo
+    info "Limpiando procesos previos..."
+    kill_leftovers
+    export_render_env
+    info "Lanzando... (Ctrl+C para detener)"
+    ros2 launch "$PKG_NAV" part2_integrated_launch.py bug:="$bug"
+}
+
+# ── Part 2 con A* + Catmull-Rom + Pure Pursuit (enfoque SENIOR) ────────────
+# Stack profesional sin BUG reactivo: planificación A* offline, suavizado
+# Catmull-Rom, tracking con Pure Pursuit. Garantiza trayectoria válida
+# desde el inicio porque conoce el mapa del laberinto.
+launch_part2_astar() {
+    section "PART 2 ASTAR · A* + Catmull-Rom + Pure Pursuit"
+    print_scenario_summary
+    info "Pipeline (enfoque senior, sin Bug reactivo):"
+    echo "  [Mapa YAML]  → OccupancyGrid 140x120 (resolución 5cm)"
+    echo "  [Waypoints]  → A* desde cero (8-connectividad, heap binario)"
+    echo "  [Path crudo] → Catmull-Rom spline (suavizado C¹)"
+    echo "  [Path suave] → Pure Pursuit tracker (lookahead 0.40m)"
+    echo "  [EKF /ekf/odom] → pose corregida con ArUcos (Sección B)"
+    echo
+    info "Waypoints (v5, validados):"
+    echo "  p0 (2.5, 0.5)  ← centro patio sur"
+    echo "  p1 (5.2, 2.5)  ← corredor este (norte del divisor)"
+    echo "  p2 (2.5, 3.5)  ← centro patio norte"
+    echo "  p3 (-0.5, 1.5) ← corredor oeste (sur del divisor)"
+    echo
+    info "Topics útiles en otra terminal:"
+    echo "  ros2 topic echo /planned_path   ← path A* en RViz"
+    echo "  ros2 topic echo /occupancy_grid ← grid visualizable"
+    echo "  ros2 topic echo /astar_nav/state ← FSM state"
+    echo
+    info "Limpiando procesos previos..."
+    kill_leftovers
+    export_render_env
+    info "Lanzando... (Ctrl+C para detener)"
+    ros2 launch "$PKG_NAV" part2_astar_launch.py
 }
 
 # ── Mover robot manualmente (en otra terminal con part1/part2 corriendo) ────
@@ -217,28 +379,27 @@ main_menu() {
     while true; do
         banner
         echo -e "${C_WHITE}${C_BOLD}MENÚ PRINCIPAL${C_RESET}\n"
-        echo -e "  ${C_MAGENTA}1)${C_RESET}  ${C_BOLD}Part 1${C_RESET}            ·  EKF Localisation (manual)"
-        echo -e "  ${C_MAGENTA}2)${C_RESET}  ${C_BOLD}Part 1 + Demo${C_RESET}     ·  EKF con demo automática (escenarios PDF)"
-        echo -e "  ${C_MAGENTA}3)${C_RESET}  ${C_BOLD}Part 2 · Bug 2${C_RESET}    ·  4 waypoints en el laberinto"
-        echo -e "  ${C_MAGENTA}4)${C_RESET}  ${C_BOLD}Part 2 · Bug 0${C_RESET}    ·  alternativa más simple"
+        echo -e "  ${C_BLUE}${C_BOLD}PARTE 1 · EKF Localisation${C_RESET}"
+        echo -e "  ${C_MAGENTA}1)${C_RESET}  Ver EKF en vivo        ${C_DIM}·  Gazebo + ArUcos + elipse en RViz${C_RESET}"
+        echo -e "  ${C_MAGENTA}2)${C_RESET}  ${C_GREEN}Evaluación completa${C_RESET}    ${C_DIM}·  RMSE + NEES + escenarios PDF ${C_GREEN}★ entregable${C_RESET}"
         echo
-        echo -e "  ${C_MAGENTA}5)${C_RESET}  Mover robot manualmente"
+        echo -e "  ${C_BLUE}${C_BOLD}PARTE 2 · Navegación${C_RESET}"
+        echo -e "  ${C_MAGENTA}3)${C_RESET}  4 waypoints (goto_goal) ${C_DIM}·  FSM con LiDAR, trayectoria cerrada${C_RESET}"
+        echo -e "  ${C_MAGENTA}4)${C_RESET}  ${C_GREEN}INTEGRATED${C_RESET}             ${C_DIM}·  Nav + EKF + ArUcos ${C_GREEN}★ opcional B${C_RESET}"
         echo
         echo -e "  ${C_DIM}── Mantenimiento ──${C_RESET}"
-        echo -e "  ${C_MAGENTA}6)${C_RESET}  Recompilar"
-        echo -e "  ${C_MAGENTA}7)${C_RESET}  Limpieza total + rebuild"
-        echo
+        echo -e "  ${C_MAGENTA}9)${C_RESET}  Recompilar"
         echo -e "  ${C_MAGENTA}0)${C_RESET}  Salir"
+        echo
+        echo -e "  ${C_DIM}(CLI: part1, part1-demo, part2-bug0/bug1/bug2, part2-integrated — ./run.sh help)${C_RESET}"
         echo
         read -r -p "$(echo -e ${C_CYAN}▸ Opción: ${C_RESET})" opt
         case "$opt" in
             1) launch_part1 ;;
-            2) launch_part1_demo ;;
-            3) launch_part2 bug2 ;;
-            4) launch_part2 bug0 ;;
-            5) move_robot ;;
-            6) build_all; pause ;;
-            7) clean_build; pause ;;
+            2) launch_part1_eval ;;
+            3) launch_part2 goto_goal ;;
+            4) launch_part2_integrated goto_goal ;;
+            9) build_all; pause ;;
             0) echo -e "\n${C_GREEN}Bye.${C_RESET}\n"; exit 0 ;;
             *) err "Opción inválida"; sleep 1 ;;
         esac
@@ -253,10 +414,17 @@ if [[ $# -ge 1 ]]; then
         clean)        clean_build ;;
         part1)        ensure_sourced; launch_part1 ;;
         part1-demo)   ensure_sourced; launch_part1_demo ;;
+        part1-eval)   ensure_sourced; launch_part1_eval ;;
         part2)        ensure_sourced; launch_part2 bug2 ;;
         part2-bug0)   ensure_sourced; launch_part2 bug0 ;;
+        part2-bug1)   ensure_sourced; launch_part2 bug1 ;;
+        part2-goto)   ensure_sourced; launch_part2 goto_goal ;;
+        part2-integrated)   ensure_sourced; launch_part2_integrated goto_goal ;;
+        part2-astar)        ensure_sourced; launch_part2_astar ;;
+        part2-astar-fast)   ensure_sourced; export HEADLESS=1; launch_part2_astar ;;
+        move)         ensure_sourced; move_robot ;;
         -h|--help|help)
-            sed -n '1,17p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '1,28p' "$0" | sed 's/^# \{0,1\}//'
             exit 0 ;;
         *) err "Comando desconocido: $sub"; exit 1 ;;
     esac

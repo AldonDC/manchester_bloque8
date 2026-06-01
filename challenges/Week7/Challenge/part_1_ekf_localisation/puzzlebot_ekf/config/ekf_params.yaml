@@ -12,24 +12,45 @@ ekf_node:
     # EKF ends up at (0, 0, 0) while Gazebo has the robot elsewhere — that
     # was the "RViz arrow in the wrong place" bug.
 
-    # Process noise: per-wheel proportional gains (Week 5).
-    # Tune up if the filter is over-confident, down if observations are
-    # being ignored.
-    k_r: 0.05
-    k_l: 0.05
+    # Process noise: per-wheel proportional gains.
+    # Subidos de 0.05 → 0.15 para que el EKF NO sea "confiado" en
+    # odometría pura durante tramos largos sin markers. Con k=0.05 la
+    # covarianza P crecía muy lento → robot creía estar bien localizado
+    # cuando ya había driftado 50cm. Con k=0.15 P crece 3x más rápido,
+    # y cuando finalmente entra un marker el filtro corrige más
+    # agresivamente. Esto resuelve el offset visible Gazebo↔RViz.
+    k_r: 0.15
+    k_l: 0.15
 
-    # Observation model: 'range_bearing' (default) or 'cartesian'.
-    # See docs/observation_models.md for the comparison.
+    # Observation model: 'range_bearing' (default) o 'cartesian'.
     observation_model: 'range_bearing'
 
-    # Measurement noise (only the ones matching the active model are used).
-    sigma_range: 0.04      # [m]
-    sigma_bearing: 0.035   # [rad]   ~2 deg
-    sigma_xy: 0.04         # [m]   for the cartesian model
+    # Measurement noise — subidos para tolerar drift acumulado.
+    # sigma_range 0.04→0.08m: refleja el ruido REAL de solvePnP con
+    #   markers a 2-3m de distancia (más lejos = más error en range).
+    # sigma_bearing 0.035→0.060 rad (~3.5°): similar, los markers
+    #   laterales se ven con bearing menos preciso por motion blur.
+    # El efecto: el EKF acepta innovations mayores SIN ser ingenuo,
+    # y la S = HPH^T + R queda mejor balanceada.
+    sigma_range: 0.08      # [m]
+    sigma_bearing: 0.060   # [rad]   ~3.5 deg
+    sigma_xy: 0.08         # [m]   for the cartesian model
 
     # Outlier rejection. chi2(2 dof, 99 %) = 9.21.
-    # Lower it to be stricter (more rejections, less drift recovery).
-    mahalanobis_gate: 9.21
+    # Subido a 13.82 (chi2 99.9%) en la versión integrada con 10 markers:
+    # los markers exteriores (4-9) están a distancias mayores (2-3m vs 1m
+    # del muro central), lo que amplifica el ruido en el bearing y daba
+    # rechazos espurios (~131 rejects del id=6 vs 77 updates del id=1 en
+    # el primer test integrated). Con 13.82 mantenemos rechazo de outliers
+    # claros pero aceptamos las observaciones legítimas más lejanas.
+    # Subido de 13.82 → 30.0 para mayor tolerancia con markers laterales
+    # (m4, m5 en wall_east). El robot acumula drift de odometría durante
+    # los tramos largos (Spawn→WP0 ~3m, WP0→WP1 ~4m), y el EKF necesita
+    # aceptar markers con innovation grande para resincronizar.
+    # 30.0 corresponde a chi2(2dof, 99.9999%) — muy permisivo pero
+    # mantiene rechazo de outliers verdaderos (false detections, IDs
+    # incorrectos, ocluidos parcialmente).
+    mahalanobis_gate: 30.0
 
     # Drop observations older than this (sec) — protects against bag replay
     # latency spikes and stale frames from a slow camera.
@@ -41,8 +62,14 @@ aruco_detector:
     # the 4x4_50 dictionary. If you regenerate markers, update both this
     # and the textures in puzzlebot_gazebo/models/aruco_marker_*.
     aruco_dict: '4x4_50'
-    # 18 cm physical side (per model.sdf <box><size>0.001 0.18 0.18</size>).
-    marker_length: 0.18
+    # Lado EFECTIVO del patrón ArUco que detecta OpenCV (el cuadro negro,
+    # NO la caja blanca de 0.18 m ni el plano completo de 0.14 m con su borde
+    # blanco "quiet zone"). Calibrado empíricamente: con 0.18 el detector veía
+    # el marker a 1.43 m cuando el ground truth daba 1.14 m (sesgo +25 %), lo
+    # que (a) hacía que el gate rechazara el 100 % de observaciones y (b) dejaba
+    # un sesgo SISTEMÁTICO de range que disparaba el NEES (~83, filtro
+    # "optimista"). El valor que anula el sesgo es 0.18·(1.144/1.433)=0.1437 m.
+    marker_length: 0.1437
     publish_debug_image: true
 
     # Camera mount on the Puzzlebot (matches puzzlebot_jetson_lidar_ed.xacro).

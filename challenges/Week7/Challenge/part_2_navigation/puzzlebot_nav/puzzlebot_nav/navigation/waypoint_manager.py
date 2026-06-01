@@ -28,9 +28,12 @@ Why a dedicated manager (not just chaining inside Bug):
 
 from enum import Enum
 
+import math
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Point
+from nav_msgs.msg import Odometry
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -61,6 +64,10 @@ class WaypointManager(Node):
         # stack (Gazebo + camera + EKF + bridge) esté plenamente arriba
         # antes de empezar a moverse.
         self.declare_parameter('startup_delay', 5.0)
+        # Watchdog timeout: si en max_wp_time el nav no publica GOAL_REACHED,
+        # forzamos avance al siguiente waypoint. Evita misión bloqueada por
+        # un wp inalcanzable. 45s es generoso para navegación reactiva.
+        self.declare_parameter('max_wp_time', 45.0)
 
         flat = list(self.get_parameter('waypoints').value)
         if len(flat) < 8 or len(flat) % 2 != 0:
@@ -76,6 +83,7 @@ class WaypointManager(Node):
         self.dwell_time = float(self.get_parameter('dwell_time').value)
         period = float(self.get_parameter('publish_period').value)
         self.startup_delay = float(self.get_parameter('startup_delay').value)
+        self.max_wp_time = float(self.get_parameter('max_wp_time').value)
 
         self.idx = 0
         self.state = _State.RUNNING
@@ -83,6 +91,8 @@ class WaypointManager(Node):
         # Reloj de arranque para el startup delay.
         self._t0 = self.get_clock().now()
         self._startup_logged = False
+        # Reloj del waypoint actual (para el watchdog max_wp_time).
+        self.wp_started_at = self._t0
 
         self.pub_goal = self.create_publisher(Point, 'goal', 10)
         self.pub_state = self.create_publisher(String, 'waypoint_manager/state', 10)
@@ -90,9 +100,23 @@ class WaypointManager(Node):
             MarkerArray, 'visualization_marker_array', 10)
 
         self.create_subscription(String, 'bug/state', self._bug_state_cb, 10)
+        # Suscripción a odom para detección de llegada INDEPENDIENTE del bug.
+        # Práctica robótica senior: el waypoint_manager NO debe depender de
+        # que el navegador publique correctamente GOAL_REACHED — si el bug
+        # falla en publicar, la misión se bloquea. Con su propia detección
+        # por distancia, la avance garantizado.
+        self._robot_x = None
+        self._robot_y = None
+        self.declare_parameter('arrival_radius', 0.50)  # un poco más generoso que el bug (0.45)
+        self.arrival_radius = float(self.get_parameter('arrival_radius').value)
+        self.create_subscription(Odometry, 'odom', self._odom_cb, 10)
         self.timer = self.create_timer(period, self._tick)
 
-        self.get_logger().info(
+    def _odom_cb(self, msg: Odometry):
+        self._robot_x = msg.pose.pose.position.x
+        self._robot_y = msg.pose.pose.position.y
+
+        self.get_logger().debug(
             f'WaypointManager | {len(self.waypoints)} waypoints, '
             f'loop={self.loop}, dwell={self.dwell_time:.1f}s'
         )
@@ -118,6 +142,10 @@ class WaypointManager(Node):
                 self.get_logger().info('trajectory complete (loop=False)')
                 return
         self.state = _State.RUNNING
+        # Reset del reloj watchdog para el nuevo waypoint.
+        self.wp_started_at = self.get_clock().now()
+        self.get_logger().info(
+            f'→ persiguiendo wp[{self.idx}] = {self.waypoints[self.idx]}')
 
     def _tick(self):
         now = self.get_clock().now()
@@ -126,6 +154,37 @@ class WaypointManager(Node):
             elapsed = (now - self.dwell_started_at).nanoseconds * 1e-9
             if elapsed >= self.dwell_time:
                 self._advance()
+
+        # PROXIMITY DETECTION: arrival INDEPENDIENTE del bug.
+        # Si el robot está dentro del arrival_radius del waypoint actual,
+        # avanzamos directo. No esperamos a que el bug publique GOAL_REACHED
+        # — esto resuelve el bug donde el bug entra a estado ARRIVED pero
+        # por alguna razón no publica el string esperado, y la misión se
+        # queda bloqueada con el robot encima del waypoint.
+        if (self.state == _State.RUNNING
+                and self._robot_x is not None
+                and self._robot_y is not None):
+            wx, wy = self.waypoints[self.idx]
+            d = math.hypot(self._robot_x - wx, self._robot_y - wy)
+            if d < self.arrival_radius:
+                self.get_logger().info(
+                    f'wp[{self.idx}] reached @ {self.waypoints[self.idx]} '
+                    f'(proximity d={d:.2f}m)')
+                self.state = _State.DWELL
+                self.dwell_started_at = now
+
+        # WATCHDOG: si llevamos > max_wp_time segundos persiguiendo el mismo
+        # waypoint sin alcanzarlo, asumimos que está atorado y FORZAMOS
+        # el avance. Evita misión bloqueada por wp inalcanzable. Práctica
+        # estándar de robótica de campo.
+        if self.state == _State.RUNNING:
+            elapsed_wp = (now - self.wp_started_at).nanoseconds * 1e-9
+            if elapsed_wp >= self.max_wp_time:
+                self.get_logger().warn(
+                    f'WATCHDOG: wp[{self.idx}] no alcanzado en '
+                    f'{elapsed_wp:.0f}s — FORZANDO avance al siguiente')
+                self.state = _State.DWELL
+                self.dwell_started_at = now
 
         self._publish_current_goal()
         self._publish_markers()

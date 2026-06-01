@@ -61,13 +61,27 @@ class Bug2(Node):
         self.declare_parameter('control_period',      0.1)
         self.declare_parameter('target_x',            3.0)
         self.declare_parameter('target_y',            0.0)
-        self.declare_parameter('goal_tolerance',      0.25)
-        self.declare_parameter('obstacle_threshold',  0.50)
+        # Tuneo para el laberinto ekf_arena (Part 2): pasillos angostos
+        # (~1 m de ancho), waypoints separados ~2.5 m. Los defaults venían
+        # de un mundo más abierto (bug_easy/medium) y dejaban al robot
+        # atorado en WALL_FOLLOW sin nunca soltarse cerca de la bandera.
+        # · goal_tolerance 0.25→0.30 m: cuenta como "llegó" antes (la
+        #   bandera mide 0.36 m de diámetro, así que 0.30 m está dentro).
+        # · obstacle_threshold 0.50→0.40 m: menos paranoico, no entra a
+        #   WALL_FOLLOW al ver paredes lejanas en el callejón.
+        # · wall_distance 0.40→0.32 m: bordea más pegado, vuelve antes
+        #   a la m-line y se libera del WALL_FOLLOW.
+        self.declare_parameter('goal_tolerance',      0.30)
+        self.declare_parameter('obstacle_threshold',  0.40)
         self.declare_parameter('clear_distance',      0.90)
-        self.declare_parameter('wall_distance',       0.40)
+        self.declare_parameter('wall_distance',       0.32)
         self.declare_parameter('kp_wall',             1.00)
         self.declare_parameter('forward_step',        0.80)
         self.declare_parameter('min_hit_progress',    0.40)
+        # Watchdog: si bordeó más de N m sin acercarse al goal, invierte
+        # lado de bordeo. Era 4 m hardcoded → enorme para laberinto chico
+        # (la arena entera es 7×6 m). Lo bajamos a 2.5 m.
+        self.declare_parameter('watchdog_dist',       2.5)
         # ── Parámetros de m-line ─────────────────────────────────────────────
         # Tolerancia perpendicular a la m-line para considerar que la
         # estamos "tocando". Más generosa → sale antes (puede chocar);
@@ -162,6 +176,7 @@ class Bug2(Node):
         self.forward_step       = gp('forward_step')
         self.min_hit_progress   = gp('min_hit_progress')
         self.mline_tolerance    = gp('mline_tolerance')
+        self.watchdog_dist      = gp('watchdog_dist')
 
     # ── Callbacks ────────────────────────────────────────────────────────────
 
@@ -315,7 +330,7 @@ class Bug2(Node):
         # bordeo: en bug_hard esto saca al robot del callejón interno
         # y lo manda a bordear por afuera de la U.
         no_progress = (self.hit_dist_to_goal - dist_goal) < 0.5
-        if self.wall_follow_dist > 4.0 and no_progress:
+        if self.wall_follow_dist > self.watchdog_dist and no_progress:
             self.wall_side = -self.wall_side
             self.wall_engaged = False
             self.left_mline = False
@@ -323,7 +338,7 @@ class Bug2(Node):
             self.hit_x, self.hit_y = self.x, self.y
             self.hit_dist_to_goal = dist_goal
             self.get_logger().warn(
-                f'WATCHDOG: 4m sin progreso, flip side → '
+                f'WATCHDOG: {self.watchdog_dist:.1f}m sin progreso, flip side → '
                 f'{"L" if self.wall_side > 0 else "R"}  dist={dist_goal:.2f}m')
             return
 

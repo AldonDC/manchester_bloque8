@@ -15,6 +15,7 @@ setup(
         f"{python_package}.navigation",
         f"{python_package}.localisation",
         f"{python_package}.control",
+        f"{python_package}.planning",
     ],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
@@ -47,9 +48,13 @@ setup(
     entry_points={
         "console_scripts": [
             "lidar_processor      = puzzlebot_nav.perception.lidar_processor:main",
+            "lidar_filter         = puzzlebot_nav.perception.lidar_filter:main",
             "wheel_state_bridge   = puzzlebot_nav.perception.wheel_state_bridge:main",
             "bug0                 = puzzlebot_nav.navigation.bug0:main",
+            "bug1                 = puzzlebot_nav.navigation.bug1:main",
             "bug2                 = puzzlebot_nav.navigation.bug2:main",
+            "goto_goal            = puzzlebot_nav.navigation.goto_goal:main",
+            "astar_nav            = puzzlebot_nav.navigation.astar_nav_node:main",
             "waypoint_manager     = puzzlebot_nav.navigation.waypoint_manager:main",
             "localisation         = puzzlebot_nav.localisation.localisation:main",
             "coordinate_transform = puzzlebot_nav.localisation.coordinate_transform:main",

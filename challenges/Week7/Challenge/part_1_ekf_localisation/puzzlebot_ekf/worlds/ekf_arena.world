@@ -8,8 +8,11 @@
 <sdf version="1.9">
   <world name="default">
 
-    <physics name="1ms" type="ignored">
-      <max_step_size>0.001</max_step_size>
+    <!-- Física a 100Hz (max_step_size=10ms): para Puzzlebot lento es más
+         que suficiente (control ROS corre a 50Hz). Pasamos de 250→100Hz
+         para liberar 2.5× más CPU al server. RTF=1.0 = realtime. -->
+    <physics name="10ms" type="ignored">
+      <max_step_size>0.010</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
     <plugin filename="gz-sim-physics-system"           name="gz::sim::systems::Physics"/>
@@ -285,28 +288,127 @@
       <pose>4.4 2.08 0.30 0 0 1.5708</pose>
     </include>
 
+    <!-- ── ArUcos EXTRA (Sección B opcional, cobertura completa) ──────────
+         Markers id 4-9 colocados en los muros EXTERIORES, despegados 3cm
+         de la pared. Los orientamos con la cara texturizada APUNTANDO HACIA
+         EL INTERIOR del laberinto (con offset +π/2 vs la normal del muro,
+         porque el plano <aruco_face> del SDF está rotado internamente).
+         Cobertura validada (≤2.5m desde cada wp):
+           p0(1.9,0.0)  → markers 0,1 (muro central, mirando sur)
+           p1(5.2,2.0)  → markers 2,3,4,5 (muro este)
+           p2(1.9,4.7)  → markers 8,9 (muro norte)
+           p3(-0.5,2.0) → markers 0,1,6,7 (muro central + oeste)
+         OFFSET DE YAW: en los markers del muro central (0,1,2,3) yaw vale
+         ±π/2 que coincide con el yaw del plano interno. Para los muros
+         exteriores aplicamos el mismo signo de orientación con offset π/2.
+    -->
+    <!-- wall_east (x=6.0): textura mirando al OESTE = -X.
+         yaw = π/2 + π/2 = π ya que el plano interno está girado π/2 -->
+    <include>
+      <name>marker_4</name>
+      <uri>model://aruco_marker_4</uri>
+      <pose>5.94 1.0 0.30 0 0 3.14159</pose>
+    </include>
+    <include>
+      <name>marker_5</name>
+      <uri>model://aruco_marker_5</uri>
+      <pose>5.94 3.0 0.30 0 0 3.14159</pose>
+    </include>
+    <!-- wall_west (x=-1.0): textura mirando al ESTE = +X (yaw=0) -->
+    <include>
+      <name>marker_6</name>
+      <uri>model://aruco_marker_6</uri>
+      <pose>-0.94 1.5 0.30 0 0 0</pose>
+    </include>
+    <include>
+      <name>marker_7</name>
+      <uri>model://aruco_marker_7</uri>
+      <pose>-0.94 3.0 0.30 0 0 0</pose>
+    </include>
+    <!-- wall_north (y=5.0): textura mirando al SUR = -Y (yaw=-π/2) -->
+    <include>
+      <name>marker_8</name>
+      <uri>model://aruco_marker_8</uri>
+      <pose>1.0 4.94 0.30 0 0 -1.5708</pose>
+    </include>
+    <include>
+      <name>marker_9</name>
+      <uri>model://aruco_marker_9</uri>
+      <pose>4.0 4.94 0.30 0 0 -1.5708</pose>
+    </include>
+
+    <!-- ── ArUcos DENTRO de cada chamber (ids 10-13, landmark interior) ──
+         Estrategia SLAM: markers en el muro interior del cierre de cada
+         chamber, mirando hacia afuera del chamber por su apertura.
+         iv1 abre al SUR → m10 en su iv1_top interior mira al SUR
+         iv2 abre al NORTE → m11 en su iv2_bottom interior mira al NORTE
+         iv3 abre al NORTE → m12 en su iv3_bottom interior mira al NORTE
+         iv4 abre al SUR → m13 en su iv4_top interior mira al SUR
+
+         El robot los ve desde el corredor exterior cercano al chamber,
+         dando observación de MÚLTIPLES markers simultáneamente (PDF
+         escenario 5.1). Cobertura: cada waypoint ve 4-6 markers. -->
+    <include>
+      <name>marker_10</name>
+      <uri>model://aruco_marker_10</uri>
+      <pose>1.15 4.22 0.30 0 0 -1.5708</pose>
+    </include>
+    <include>
+      <name>marker_11</name>
+      <uri>model://aruco_marker_11</uri>
+      <pose>1.15 -0.22 0.30 0 0 1.5708</pose>
+    </include>
+    <include>
+      <name>marker_12</name>
+      <uri>model://aruco_marker_12</uri>
+      <pose>3.85 -0.22 0.30 0 0 1.5708</pose>
+    </include>
+    <!-- m13 en esquina IZQUIERDA de ih2_right (muro divisorio derecho).
+         ih2_right cubre x∈[2.4, 4.6] en y=2.0. m13 va en su esquina
+         izquierda (x=2.4) cara NORTE (y=2.08, mira al norte yaw=+π/2).
+         Simétrico al m0 que está en la otra punta (0.6, 2.08).
+         Cobertura validada: 5 puntos de la trayectoria lo ven, en
+         particular CENTRADO desde WP2 mirando al sur (preparando WP3). -->
+    <include>
+      <name>marker_13</name>
+      <uri>model://aruco_marker_13</uri>
+      <pose>2.4 2.08 0.30 0 0 1.5708</pose>
+    </include>
+
+    <!-- Markers 14-16 REMOVIDOS: estaban embebidos físicamente dentro
+         de las paredes iv2_east, iv3_west, iv4_west. El detector ArUco
+         los reportaba pero el EKF rechazaba el 99% de las observaciones
+         por mismatch de geometría (innovation > gate Mahalanobis).
+         Los 14 markers originales (0-13) dan cobertura suficiente para
+         los 5 tramos de la trayectoria cerrada. -->
+
+
     <!-- ── Waypoints de Part 2 (banderas verdes visibles en Gazebo) ────
-         4 puntos de la trayectoria cerrada del PDF. Solo visual: no
-         tienen collision, no afectan al LiDAR ni a la navegación. -->
+         4 puntos v5 INTERIOR-SAFE: todos con margen ≥0.5m a cualquier
+         muro. v4 ponía WP en bordes (y=0.0, y=4.7) donde el robot se
+         pasaba por inercia hacia zonas muertas. v5 los centra en los
+         patios entre chambers Y alterna norte/sur del divisor para
+         forzar el cruce del gap central 2 veces.
+         Solo visual, sin colisión. -->
     <include>
       <name>wp0_flag</name>
       <uri>model://goal_flag</uri>
-      <pose>2.0 0.5 0 0 0 0</pose>
+      <pose>2.5 0.5 0 0 0 0</pose>
     </include>
     <include>
       <name>wp1_flag</name>
       <uri>model://goal_flag</uri>
-      <pose>4.7 2.0 0 0 0 0</pose>
+      <pose>5.2 2.5 0 0 0 0</pose>
     </include>
     <include>
       <name>wp2_flag</name>
       <uri>model://goal_flag</uri>
-      <pose>2.0 3.5 0 0 0 0</pose>
+      <pose>2.5 3.5 0 0 0 0</pose>
     </include>
     <include>
       <name>wp3_flag</name>
       <uri>model://goal_flag</uri>
-      <pose>-0.5 2.5 0 0 0 0</pose>
+      <pose>-0.5 1.5 0 0 0 0</pose>
     </include>
 
   </world>

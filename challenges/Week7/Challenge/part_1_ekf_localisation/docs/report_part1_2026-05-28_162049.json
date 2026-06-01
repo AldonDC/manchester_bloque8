@@ -1,0 +1,40 @@
+{
+  "challenge": "Part 1 — EKF Visual Localisation",
+  "timestamp": "2026-05-28T16:20:49",
+  "observation_model": "range_bearing",
+  "config": {
+    "sample_time_s": 0.02,
+    "wheel_radius_m": 0.05,
+    "wheelbase_m": 0.19,
+    "k_r": 0.05,
+    "k_l": 0.05,
+    "mahalanobis_gate": 9.21
+  },
+  "samples": 2,
+  "rmse": {
+    "xy_m": 0.0,
+    "x_m": 0.0,
+    "y_m": 0.0,
+    "yaw_deg": 0.0
+  },
+  "nees": {
+    "mean": 0.0,
+    "expected": 3.0,
+    "in_band_pct": 0.0,
+    "band_chi2_3dof_95": [
+      0.216,
+      9.348
+    ],
+    "consistency": "CONSERVATIVE (covariance too large)"
+  },
+  "aruco_updates": {
+    "accepted": 2,
+    "rejected": 0,
+    "accept_pct": 100.0,
+    "per_marker_accepted": {
+      "1": 2
+    },
+    "per_marker_rejected": {}
+  },
+  "phases": {}
+}

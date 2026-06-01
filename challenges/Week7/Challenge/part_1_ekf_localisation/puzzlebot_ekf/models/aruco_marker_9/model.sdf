@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+    <model name="aruco_marker_9">
+        <static>true</static>
+        <link name='link'>
+            <inertial>
+                <mass>0.281</mass>
+                <inertia><ixx>0.0006167</ixx><iyy>0.0006167</iyy><izz>0.0006167</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+            </inertial>
+            <collision name="collision">
+                <geometry><box><size>0.001 0.18 0.18</size></box></geometry>
+            </collision>
+            <visual name="box_visual">
+                <cast_shadows>0</cast_shadows>
+                <geometry><box><size>0.001 0.18 0.18</size></box></geometry>
+                <material>
+                    <ambient>0.95 0.95 0.95 1</ambient>
+                    <diffuse>1.0 1.0 1.0 1</diffuse>
+                    <specular>0.05 0.05 0.05 1</specular>
+                </material>
+            </visual>
+            <visual name="aruco_face">
+                <cast_shadows>0</cast_shadows>
+                <pose>0.00065 0 0 1.5708 0 1.5708</pose>
+                <geometry><plane><normal>0 0 1</normal><size>0.14 0.14</size></plane></geometry>
+                <material>
+                    <pbr>
+                        <metal>
+                            <albedo_map>model://aruco_marker_9/materials/textures/marker9.png</albedo_map>
+                        </metal>
+                    </pbr>
+                    <ambient>1 1 1 1</ambient>
+                    <diffuse>1 1 1 1</diffuse>
+                </material>
+            </visual>
+        </link>
+    </model>
+</sdf>

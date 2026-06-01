@@ -57,7 +57,9 @@ def _box_marker(idx, name, x, y, z, sx, sy, sz, r, g, b):
 class WorldVisualizer(Node):
     def __init__(self):
         super().__init__('world_visualizer')
-        self.declare_parameter('publish_period_s', 1.0)
+        # 5s: las paredes son estáticas. Republicar más rápido solo desperdicia
+        # ancho de banda. RViz cachea el último MarkerArray con el QoS de Reliable.
+        self.declare_parameter('publish_period_s', 5.0)
         period = float(self.get_parameter('publish_period_s').value)
         self.pub = self.create_publisher(MarkerArray, 'world/maze', 10)
         self.create_timer(period, self._publish)

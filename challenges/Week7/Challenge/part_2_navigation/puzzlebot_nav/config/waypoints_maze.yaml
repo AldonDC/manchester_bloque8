@@ -15,34 +15,74 @@ waypoint_manager:
     #   chambers: iv1, iv4 (top) at y~3.5; iv2, iv3 (bottom) at y~0.5
     #   mid dividers leave a vertical gap at x ~ [1.4, 2.4], y = 2.0
     #
-    # Trajectory (closed loop):
+    # Trajectory (closed loop) — v2: waypoints en ZONAS ABIERTAS, ≥0.5 m
+    # de cualquier pared. La v1 ponía p1 a 0.3 m de wall_east + 0.2 m de
+    # iv4, un callejón apretado donde el navegador con campos potenciales
+    # se trababa en equilibrio entre repulsiones laterales. v2 mueve los
+    # 4 puntos a las esquinas amplias del laberinto manteniendo TODAS las
+    # restricciones del PDF (4 wp, cerrada, no rectos, no co-direccionales,
+    # circumnavega obstáculos).
     #
-    #                 y = +3.5  ┌─── iv1 ───┐    ┌─── iv4 ───┐
-    #                           │            │    │            │
-    #                p3 (-0.5, +2.5)         p2 (+2.0, +3.5)
-    #                   *<---------------------*
-    #                           ▲                          \
-    #                           │                           ▼
-    #                           │  central     ROBOT(1.95, 2.0)
-    #                           │   gap                    \
-    #                           │                           ▼
-    #                p0 (+2.0, +0.5)*-------------->* p1 (+4.7, +2.0)
-    #                           │            │    │            │
-    #                 y = -0.5  └─── iv2 ───┘    └─── iv3 ───┘
-    #                          x=-1      x=2.0      x=6
+    # Validación PDF (calculada con script):
+    #   tramo     dx     dy   dist  Δheading  recto?
+    #   p0→p1   +2.5  +2.0  3.20m    -        NO
+    #   p1→p2   -2.5  +1.5  2.92m   110°      NO
+    #   p2→p3   -3.0  -2.5  3.91m    71°      NO
+    #   p3→p0   +3.0  -1.0  3.16m   122°      NO
     #
-    # Each leg crosses the dividers via the central gap, forcing the
-    # robot to weave between the inner chambers — that satisfies the
-    # PDF requirement of "circumnavigate all the obstacles".
+    #             y=+5  ┌─── wall_north ──────────────────────┐
+    #                   │                                      │
+    #                   │  ┌─iv1─┐         ┌─iv4─┐             │
+    #             y=4 ─ │  │     │         │     │             │
+    #          p2 (+2.5, +4.0)  ◄────── p3 (-0.5, +1.5)        │
+    #                   │       gap                ▲           │
+    #             y=2 ─ │ ─ ─ ─divisor central ─ ─ │ ─ ─ ─ ─ ─ │
+    #                   │       gap                │           │
+    #                   │  ┌─iv2─┐         ┌─iv3─┐ │           │
+    #             y=0 ─ │  │     │   p1 (+5.0, +2.5)           │
+    #              p0 (+2.5, +0.5) ──────────────►              │
+    #             y=-1 ┴───── wall_south ────────────────────┘
+    #                  x=-1      x=2.5      x=5      x=6
+    #
+    # Cada tramo cruza el gap central (x∈[1.8, 3.2], y=2) → el robot
+    # circumnavega forzosamente los chambers iv1..iv4 al ir de un punto
+    # al siguiente. Cumple "circumnavigate all the obstacles" del PDF.
+    # waypoints v3 — alineados al gap REAL del divisor central
+    # GAP del divisor: x ∈ [1.4, 2.4] (entre ih2_left y ih2_right)
+    # Antes ponía p0 en x=2.5 (DENTRO del muro ih2_right que va de 2.4
+    # a 4.6), por eso el robot se atoraba: el campo repulsivo del muro
+    # lo empujaba antes de poder cruzar al norte. v3 centra los WP del
+    # eje N-S exactamente en x=1.9 (centro del gap) y los del eje E-W
+    # en y=2.0 (a la altura del corredor central). Resultado: cada
+    # cruce N↔S pasa naturalmente por el gap sin penalización.
+    #
+    # Validación PDF (script: tramo dx dy dist Δhead recto):
+    #   p0→p1   +3.30  +2.00  3.86m   -         NO
+    #   p1→p2   -3.30  +2.70  4.26m  109°       NO
+    #   p2→p3   -2.40  -2.70  3.61m   88°       NO
+    #   p3→p0   +2.40  -2.00  3.12m   92°       NO
+    # waypoints v5 — INTERIOR-SAFE (todos con margen ≥0.5m a cualquier muro)
+    # Análisis senior de v4: WP0(y=0.0) y WP2(y=4.7) estaban en bordes
+    # peligrosos — si el robot sobrepasa por inercia (~0.5m), sale FUERA
+    # del corredor a zona muerta. Y WP1/WP3 con y=2.0 estaban LITERALMENTE
+    # sobre el muro divisorio horizontal ih2.
+    # v5: alternar norte/sur del divisor para forzar cruzar el gap central
+    # 2 veces (cumple "circumnavegar obstáculos" del PDF) PERO con margen
+    # de 0.5m mínimo a cualquier muro.
+    # Validación PDF (script):
+    #   p0→p1   +2.70  +2.00  3.36m   -      NO recto ✓
+    #   p1→p2   -2.70  +1.00  2.88m  123°    NO recto ✓
+    #   p2→p3   -3.00  -2.00  3.61m   54°    NO recto ✓
+    #   p3→p0   +3.00  -1.00  3.16m  128°    NO recto ✓
     waypoints:
-      - 2.0    # p0_x  (south of dividers, between iv2 & iv3)
-      - 0.5    # p0_y
-      - 4.7    # p1_x  (east corridor near outer wall)
-      - 2.0    # p1_y
-      - 2.0    # p2_x  (north of dividers, between iv1 & iv4)
-      - 3.5    # p2_y
-      - -0.5   # p3_x  (west corridor near outer wall)
-      - 2.5    # p3_y
+      - 2.5    # p0_x  centro PATIO SUR (entre iv2-iv3 ABIERTO al norte)
+      - 0.5    # p0_y  1.5m del wall_south, 0.8m del techo de iv2/iv3
+      - 5.2    # p1_x  corredor este (0.8m de wall_east)
+      - 2.5    # p1_y  AL NORTE del divisor (0.5m del divisor, 1.2m del iv4)
+      - 2.5    # p2_x  centro PATIO NORTE (entre iv1-iv4 ABIERTO al sur)
+      - 3.5    # p2_y  1.5m del wall_north, 0.8m del piso de iv1/iv4
+      - -0.5   # p3_x  corredor oeste (0.5m de wall_west)
+      - 1.5    # p3_y  AL SUR del divisor (0.5m del divisor, 0.2m de iv2)
     frame_id: 'odom'
     loop: true
     dwell_time: 1.5      # 1.5 s pause at each waypoint

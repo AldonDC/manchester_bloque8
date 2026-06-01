@@ -57,11 +57,7 @@ def _resolve_world(context):
 
 
 def _expand_xacro(robot_type: str) -> str:
-    """
-    Ejecuta `xacro` sobre el .xacro correspondiente y devuelve el URDF
-    expandido como string. Lo hacemos vía subprocess para evitar el problema
-    de shlex.split con rutas que contienen espacios.
-    """
+    """Expand the robot xacro to a URDF string, handling spaces in paths."""
     pkg_desc = get_package_share_directory('puzzlebot_description')
     xacro_path = os.path.join(
         pkg_desc, 'urdf', 'mcr2_robots', f'{robot_type}.xacro')
@@ -82,35 +78,112 @@ def _expand_xacro(robot_type: str) -> str:
     # Workaround para el espacio en '/8 Semestre/...':
     # Gazebo no soporta espacios crudos NI URL-encoded en file:// URIs;
     # RViz acepta %20 pero no espacios crudos. La solución limpia es
-    # crear un symlink sin espacios apuntando al install/share del paquete
-    # de descripción, y reescribir los paths en el URDF para usarlo.
+    # crear un real copy bajo /tmp sin espacios.
     real_share = get_package_share_directory('puzzlebot_description')
     if ' ' in real_share:
-        symlink = '/tmp/puzzlebot_description_share'
-        # Recrear el symlink si no existe o apunta a otro lado
-        if (not os.path.islink(symlink) or
-                os.readlink(symlink) != real_share):
+        copy_dir = '/tmp/puzzlebot_description_share'
+        import shutil
+        if os.path.exists(copy_dir):
             try:
-                if os.path.islink(symlink):
-                    os.unlink(symlink)
-                os.symlink(real_share, symlink)
-            except OSError:
-                pass  # ya existe, lo dejamos
-        urdf = urdf.replace(real_share, symlink)
+                if os.path.islink(copy_dir):
+                    os.unlink(copy_dir)
+                else:
+                    shutil.rmtree(copy_dir)
+            except Exception:
+                pass
+        try:
+            shutil.copytree(real_share, copy_dir)
+        except Exception:
+            pass
+        urdf = urdf.replace(real_share, copy_dir)
     return urdf
+
+
+def _fix_urdf_for_gazebo_harmonic(urdf: str) -> str:
+    """Fix the URDF so Gazebo Harmonic's Ogre2 renderer can display the robot.
+
+    Root cause of the "invisible robot":
+        The xacro defines URDF-level materials like <material name="yellow">
+        with RGBA colors. When Gazebo's URDF→SDF converter processes these,
+        it generates Ogre1-style fixed-function materials (e.g.
+        "Default/TransGreen") that Ogre2 cannot render.
+
+    Fix strategy:
+        1. Strip all URDF-level material definitions and references.
+        2. Inject proper SDF-compatible <material> blocks with <ambient>/
+           <diffuse> RGBA values into <gazebo reference="link_name"> blocks
+           for every visual link.
+    """
+    import re
+
+    # ── 1. Strip legacy script materials and URDF-level materials ───────────
+    urdf = re.sub(r'\s*<material>Gazebo/[^<]+</material>\s*', '\n  ', urdf)
+    urdf = re.sub(r'<material\s+name="[^"]*"\s*/>', '', urdf)
+    urdf = re.sub(r'<material\s+name="[^"]*">.*?</material>', '', urdf, flags=re.DOTALL)
+
+    # ── 2. Inject SDF-compatible <material> blocks ───────────────────────────
+    link_colors = {
+        'base_link':           '0.95 0.85 0.10 1',   # yellow chassis
+        'wheel_left_link':     '0.15 0.15 0.15 1',   # dark grey wheels
+        'wheel_right_link':    '0.15 0.15 0.15 1',
+        'wheel_caster_link':   '0.15 0.15 0.15 1',
+        'caster_holder_link':  '0.15 0.15 0.15 1',
+        'jetson_link':         '0.40 0.40 0.45 1',   # grey Jetson
+        'bracket_base_link':   '0.40 0.40 0.45 1',   # grey bracket
+        'lidar_base_link':     '0.40 0.40 0.45 1',   # grey LiDAR
+    }
+
+    for link_name, rgba in link_colors.items():
+        material_block = (
+            f'\n  <visual>\n'
+            f'    <material>\n'
+            f'      <ambient>{rgba}</ambient>\n'
+            f'      <diffuse>{rgba}</diffuse>\n'
+            f'      <specular>0.3 0.3 0.3 1</specular>\n'
+            f'    </material>\n'
+            f'  </visual>'
+        )
+
+        tag = f'<gazebo reference="{link_name}">'
+        if tag in urdf:
+            urdf = urdf.replace(tag, tag + material_block, 1)
+        else:
+            urdf = urdf.replace(
+                '</robot>',
+                f'<gazebo reference="{link_name}">{material_block}\n</gazebo>\n</robot>',
+                1,
+            )
+
+    # ── 3. Clean up miscellaneous URDF issues ────────────────────────────────
+    urdf = re.sub(r'&quot;\s*', '', urdf)
+    urdf = urdf.replace('name="Puzzlebot_Jetson_Ed."', 'name="puzzlebot_jetson_lidar_ed"')
+    urdf = urdf.replace('name="Puzzlebot_Jetson_Ed"', 'name="puzzlebot_jetson_lidar_ed"')
+    urdf = re.sub(r'<gz_frame_id>\s*</gz_frame_id>\s*', '', urdf)
+
+    return urdf
+
 
 
 def _build_simulation(context):
     """Construye gz_sim + robot_state_publisher + spawn + bridge."""
     world_path = _resolve_world(context)
     robot_type = LaunchConfiguration('robot_type').perform(context)
-    robot_description = _expand_xacro(robot_type)
+    robot_description = _fix_urdf_for_gazebo_harmonic(_expand_xacro(robot_type))
 
     # Ejecutamos `gz sim` directo con argv-list (ExecuteProcess), evitando
     # el ros_gz_sim launcher que concatena `gz_args` con espacios y rompe
     # rutas que contienen espacios (como '/8 Semestre/...').
+    sw_env = {
+        '__GLX_VENDOR_LIBRARY_NAME': 'mesa',
+        'LIBGL_ALWAYS_SOFTWARE': '1',
+        'GALLIUM_DRIVER': 'llvmpipe',
+        'MESA_LOADER_DRIVER_OVERRIDE': 'kms_swrast',
+        'OGRE_RTT_MODE': 'Copy',
+        'QT_QPA_PLATFORM': 'xcb',
+    }
     gz = ExecuteProcess(
         cmd=['gz', 'sim', '-r', '-v', '3', world_path],
+        additional_env=sw_env,
         output='screen',
     )
 
@@ -188,25 +261,55 @@ def generate_launch_description():
         value=os.path.join(gazebo_resources, 'plugins'))
 
     # ── Workaround de rendering server-side ──────────────────────────────────
-    # En equipos donde EGL no negocia bien con la GPU (síntoma:
+    # Síntoma que arreglamos aquí: el robot se spawnea OK en Gazebo (los
+    # topics /scan, /joint_states, /ground_truth publican; DiffDrive
+    # responde a /cmd_vel) pero los meshes NO se dibujan en la viewport.
+    # En RViz sí se ven porque RViz usa su propio Ogre1 vía glX, no EGL.
+    #
+    # Causa raíz en esta máquina (híbrida Intel iGPU + NVIDIA dGPU):
     #   "libEGL warning: egl: failed to create dri2 screen"
-    # y meshes STL del robot que NO se dibujan aunque el spawn diga "OK"),
-    # forzamos a Ogre2 a usar Copy-mode para los render targets y a glX
-    # como backend GL. Esto NO afecta el cómputo físico ni los sensores;
-    # sólo evita el camino EGL→DRI2 que está roto en muchos drivers Intel.
+    #   "GBM platform: eglInitialize failed"
+    # Ogre2 (el render engine de Gazebo Harmonic) intenta EGL→GBM por
+    # default y eso falla porque Mesa+NVIDIA no negocian GBM bien. La
+    # plataforma EGL→X11 sí funciona en esta máquina.
     set_ogre_rtt = SetEnvironmentVariable(
         name='OGRE_RTT_MODE', value='Copy')
     set_qt_xcb = SetEnvironmentVariable(
         name='QT_QPA_PLATFORM', value='xcb')
 
-    # ── Rendering: usar iGPU Intel/Mesa ───────────────────────────────────────
-    # Antes intentábamos PRIME render-offload con NVIDIA, pero en esta máquina
-    # el driver NVIDIA está mal configurado (`nvidia-smi` falla con "No devices
-    # were found"). Mesa/Intel sí funciona. Si NVIDIA se arregla en el futuro,
-    # se puede volver al offload exportando __NV_PRIME_RENDER_OFFLOAD=1 y
-    # __GLX_VENDOR_LIBRARY_NAME=nvidia antes del launch (también en run.sh).
+    # ── Rendering: software (llvmpipe) ───────────────────────────────────────
+    # Estado del hardware en esta máquina:
+    #   * NVIDIA: driver mal configurado, `nvidia-smi` → "No devices found".
+    #   * Intel Alder Lake-P iGPU (PCI 0x28a1): Mesa iris NO la soporta,
+    #     tira "MESA: warning: Driver does not support the 0x28a1 PCI ID"
+    #     y "libEGL warning: egl: failed to create dri2 screen". Resultado:
+    #     Gazebo Harmonic levanta el server pero la GUI Ogre2 nunca crea
+    #     un contexto de render → el robot se spawnea (los topics /scan,
+    #     /joint_states, /ground_truth publican) pero NO se dibuja en la
+    #     viewport. En RViz sí se ve porque RViz usa Ogre1+glX, que
+    #     tolera ese estado.
+    #
+    # Fix: forzar llvmpipe (rasterización por CPU). Es más lento pero
+    # garantizado a funcionar, y para Bug 0/Bug 2 con un robot diferencial
+    # y un LiDAR a 50 Hz es suficiente. Una vez que NVIDIA se reinstale
+    # bien, basta cambiar a __GLX_VENDOR_LIBRARY_NAME=nvidia + el offload
+    # PRIME que estaba antes en este archivo.
+    #
+    #   LIBGL_ALWAYS_SOFTWARE=1       → glX → llvmpipe
+    #   GALLIUM_DRIVER=llvmpipe       → confirma gallium llvmpipe
+    #   __GLX_VENDOR_LIBRARY_NAME=mesa→ libglvnd toma el ICD Mesa, no NVIDIA
+    # NOTA Mesa 23+: LIBGL_ALWAYS_SOFTWARE=1 lo respeta glX pero EGL emite
+    # "Not allowed to force software rendering when API explicitly selects
+    # a hardware device". Aun así, el server de física + sensores arranca
+    # y publica (verificado: /scan a ~23 Hz). La GUI viewport de Gazebo
+    # puede quedar pintando solo wireframe o sin meshes. Si Gazebo no
+    # consigue render context para nada, prueba a comentar este bloque
+    # y arrancar con NVIDIA en lugar de Mesa.
     extra_render_env = [
         SetEnvironmentVariable(name='__GLX_VENDOR_LIBRARY_NAME', value='mesa'),
+        SetEnvironmentVariable(name='LIBGL_ALWAYS_SOFTWARE', value='1'),
+        SetEnvironmentVariable(name='GALLIUM_DRIVER', value='llvmpipe'),
+        SetEnvironmentVariable(name='MESA_LOADER_DRIVER_OVERRIDE', value='kms_swrast'),
     ]
 
     # Todo lo dinámico se construye en runtime con OpaqueFunction porque

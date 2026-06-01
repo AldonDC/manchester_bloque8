@@ -1,0 +1,30 @@
+
+╔════════════════════════════════════════════════════════════════════════╗
+║  PART 1 · EKF Localisation — FINAL EVALUATION METRICS                  ║
+╠════════════════════════════════════════════════════════════════════════╣
+║  Samples              :     67                                              ║
+║  RMSE position (xy)   :  0.039 m                                       ║
+║    RMSE x             :  0.012 m                                       ║
+║    RMSE y             :  0.037 m                                       ║
+║  RMSE yaw             :   3.09 °                                       ║
+║                                                                        ║
+║  NEES mean            :   9.29   (expected ≈ 3.00 for 3-DOF filter)  ║
+║  NEES in 95% χ² band  :  77.6%  (band = [0.216, 9.348])           ║
+║                                                                        ║
+║  ArUco updates accepted:   470                                          ║
+║  ArUco updates rejected:     0  (0.0%)                              ║
+║  Per-marker breakdown  : upd={1: 470}   rej={}
+╚════════════════════════════════════════════════════════════════════════╝
+
+  Interpretation:
+    • RMSE_xy = 0.039 m   → average position error vs Gazebo ground truth
+    • NEES = 9.29     → OPTIMISTIC (covariance too small)
+    • 77.6% of samples inside the χ²(3) 95 % band
+
+  Per-phase breakdown (PDF robustness scenarios):
+  phase              n   RMSE_xy    NEES  in_band  upd  rej  P_grow
+  multi_marker       5    0.0080    1.75   100.0%   50    0    1.16x
+  scanning           8    0.0458   20.29    37.5%   24    0    2.48x
+  no_marker          7    0.0877   37.95     0.0%    0    0    1.43x
+  reacquire          8    0.0523    8.63    62.5%   22    0    0.77x
+  final_idle         4    0.0141    3.21   100.0%   36    0    1.04x

@@ -119,9 +119,13 @@ class ArucoDetector(Node):
             self._load_intrinsics_from_yaml(intr_yaml)
 
         self.bridge = CvBridge()
-        self.create_subscription(Image, 'camera/image_raw', self._image_cb, 10)
+        # QoS depth=1: solo nos importa el frame MÁS RECIENTE. Si el detector
+        # va lento (procesa a 5-10Hz y la cámara publica a 30Hz), saltarse
+        # frames viejos es MEJOR que acumularlos (queue baja CPU usage en
+        # la cola interna y reduce latencia del overlay).
+        self.create_subscription(Image, 'camera/image_raw', self._image_cb, 1)
         self.create_subscription(CameraInfo, 'camera/camera_info',
-                                 self._cam_info_cb, 10)
+                                 self._cam_info_cb, 1)
         self.pub_obs = self.create_publisher(
             PoseArray, 'aruco/observations', 10)
         self.pub_dbg = self.create_publisher(Image, 'aruco/image', 10) \

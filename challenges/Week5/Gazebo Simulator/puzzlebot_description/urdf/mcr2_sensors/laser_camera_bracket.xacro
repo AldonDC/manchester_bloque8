@@ -190,8 +190,13 @@
                     <camera_info_topic>${prefix}camera_info</camera_info_topic>"
                     <horizontal_fov>1.089</horizontal_fov>
                     <image>
-                        <width>640</width>
-                        <height>480</height>
+                        <!-- 320x240 @ 10Hz: 4x menos píxeles que 640x480, mucho
+                             más fluido en software rendering. ArUco 14cm a 2m
+                             aún ocupa ~28px de lado → solvePnP funciona OK.
+                             RAW image stream: 640*480*3*10 = 9.2MB/s →
+                             320*240*3*10 = 2.3MB/s (4x menos ancho de banda). -->
+                        <width>320</width>
+                        <height>240</height>
                         <format>R8G8B8</format>
                     </image>
                     <clip>
@@ -206,7 +211,13 @@
                 </camera>
                 <always_on>1</always_on>
                 <gz_frame_id>${prefix}${camera_frame}</gz_frame_id>
-                <update_rate>10</update_rate>
+                <!-- 5Hz: para ArUco no necesitamos más. solvePnP a 5Hz da
+                     2 detecciones/segundo al EKF, más que suficiente para
+                     corregir drift. Antes a 10Hz duplicábamos load del
+                     render Ogre (cada frame de cámara = scene + materials
+                     + texturas) y del bridge ROS2 (~770KB serialización
+                     por frame). 5Hz baja CPU del server ~25%. -->
+                <update_rate>5</update_rate>
                 <visualize>false</visualize>
             </sensor>
     </gazebo>

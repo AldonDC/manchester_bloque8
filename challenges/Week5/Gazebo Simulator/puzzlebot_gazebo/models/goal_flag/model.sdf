@@ -16,8 +16,14 @@
 <sdf version="1.9">
   <model name="goal_flag">
     <static>true</static>
+    <self_collide>false</self_collide>
 
     <link name="link">
+      <!-- Sin <collision> explícita. Pero algunas versiones de Gazebo
+           usan visuals como collisions implícitas si no hay collision
+           tag. Forzamos laser_retro=0 para que el LiDAR los IGNORE
+           explícitamente en los rayos. -->
+      <laser_retro>0.0</laser_retro>
 
       <!-- Disco de base en el piso para ver el "punto exacto" del goal -->
       <visual name="base_disc">

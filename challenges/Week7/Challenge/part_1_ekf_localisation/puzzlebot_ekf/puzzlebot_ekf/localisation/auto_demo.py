@@ -30,18 +30,20 @@ import time
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 
 
-# Each step: (description, linear.x, angular.z, duration_seconds)
+# Each step: (phase_id, description, linear.x, angular.z, duration_seconds)
+# El phase_id se publica en /demo/phase para que ekf_node agrupe las métricas
+# (RMSE, NEES, updates aceptados/rechazados) por escenario del PDF.
 # Rotation-only plan: safer (no wall collisions), demonstrates the same
-# 3 PDF scenarios visually clearly. Spin in place 360° while the camera
-# sweeps the four corners of the arena.
+# 3 PDF scenarios visually clearly.
 _DEMO_PLAN = [
-    ("[1/4] Quieto — multi-marker (M0 + M3 visibles) — 6 s",    0.0,  0.0, 6.0),
-    ("[2/4] Girar 180° lento — barre todos los markers",        0.0,  0.35, 9.0),
-    ("[3/4] QUIETO mirando al muro — sin markers · P CRECE",    0.0,  0.0, 8.0),
-    ("[4/4] Girar de vuelta — markers reaparecen · P ENCOGE",   0.0, -0.35, 9.0),
-    ("       Quieto final 4 s",                                  0.0,  0.0, 4.0),
+    ('multi_marker',   "[1/4] Quieto — multi-marker visible · ELIPSE TIGHT",    0.0,  0.0, 6.0),
+    ('scanning',       "[2/4] Girar 180° lento — barre todos los markers",     0.0,  0.35, 9.0),
+    ('no_marker',      "[3/4] QUIETO mirando al muro — sin markers · P CRECE", 0.0,  0.0, 8.0),
+    ('reacquire',      "[4/4] Girar de vuelta — markers reaparecen · P ENCOGE",0.0, -0.35, 9.0),
+    ('final_idle',     "       Quieto final 4 s",                              0.0,  0.0, 4.0),
 ]
 
 
@@ -56,6 +58,9 @@ class AutoDemo(Node):
         self.rate_hz = float(self.get_parameter('publish_rate_hz').value)
 
         self.pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        # /demo/phase: ekf_node se suscribe para segmentar las métricas por
+        # escenario del PDF (multi-marker / sin marker / reaparición / etc.).
+        self.pub_phase = self.create_publisher(String, 'demo/phase', 10)
 
         self.get_logger().info(
             f'AutoDemo armed | warmup={self.warmup:.1f}s | rate={self.rate_hz:.0f} Hz'
@@ -74,8 +79,13 @@ class AutoDemo(Node):
             rclpy.spin_once(self, timeout_sec=0.1)
 
         period = 1.0 / self.rate_hz
-        for desc, lx, az, dur in _DEMO_PLAN:
+        for phase_id, desc, lx, az, dur in _DEMO_PLAN:
             self.get_logger().info(desc)
+            # Publica la fase ANTES de empezar, varias veces para que el ekf
+            # node la reciba aunque haya jitter de latched/qos.
+            for _ in range(3):
+                self.pub_phase.publish(String(data=phase_id))
+                time.sleep(0.02)
             step_deadline = time.time() + dur
             msg = Twist()
             msg.linear.x = float(lx)
@@ -84,6 +94,9 @@ class AutoDemo(Node):
                 self.pub.publish(msg)
                 rclpy.spin_once(self, timeout_sec=period)
 
+        # Señal de fin para que ekf_node cierre la última fase y vuelque el
+        # reporte agregado por fases en el siguiente shutdown.
+        self.pub_phase.publish(String(data='__end__'))
         # Explicit stop at the end.
         self.pub.publish(Twist())
         self.get_logger().info(

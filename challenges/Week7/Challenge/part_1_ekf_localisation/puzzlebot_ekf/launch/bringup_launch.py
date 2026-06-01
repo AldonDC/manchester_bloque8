@@ -76,7 +76,11 @@ def _expand_xacro(robot_type: str) -> str:
 
 def _fix_urdf_for_gazebo_harmonic(urdf: str) -> str:
     """Same Week 6 fix: strip URDF <material> and inject SDF blocks in
-    <gazebo reference> tags so Ogre2 has shader-compatible materials."""
+    <gazebo reference> tags so Ogre2 has shader-compatible materials.
+    Nota: el URDF en RViz está deshabilitado (muy pesado: 13 links).
+    En su lugar usamos un Marker cilindro rojo desde astar_nav_node.
+    Gazebo sí usa el URDF completo (con sus colores originales).
+    """
     import re
 
     urdf = re.sub(r'\s*<material>Gazebo/[^<]+</material>\s*', '\n  ', urdf)
@@ -126,27 +130,20 @@ def _build_simulation(context):
     robot_type = LaunchConfiguration('robot_type').perform(context)
     robot_description = _fix_urdf_for_gazebo_harmonic(_expand_xacro(robot_type))
 
-    # EXACT same software-render env that Week 6 passes via additional_env.
-    sw_env = {
-        '__GLX_VENDOR_LIBRARY_NAME': 'mesa',
-        'LIBGL_ALWAYS_SOFTWARE': '1',
-        'GALLIUM_DRIVER': 'llvmpipe',
-        'MESA_LOADER_DRIVER_OVERRIDE': 'kms_swrast',
-        'OGRE_RTT_MODE': 'Copy',
-        'QT_QPA_PLATFORM': 'xcb',
-    }
-    # `--render-engine-gui ogre` fuerza la GUI a Ogre1 (que sí renderiza
-    # con Mesa+llvmpipe). El servidor de sensores sigue en Ogre2 para que
-    # la cámara del robot publique imágenes en /camera. Sin este flag el
-    # robot existe (gz model --list lo muestra, ground_truth publica) pero
-    # la viewport Ogre2 queda en blanco/sin meshes y el usuario no lo ve.
-    gz = ExecuteProcess(
-        cmd=['gz', 'sim', '-r', '-v', '3',
-             '--render-engine-gui', 'ogre',
-             world_path],
-        additional_env=sw_env,
-        output='screen',
-    )
+    # Render: Ogre1 para GUI Y sensors. En software (Mesa+llvmpipe) Ogre1
+    # es 2-3x más rápido que Ogre2. -v 1 baja spam de logs (sincronización
+    # stderr cuesta CPU).
+    #
+    # HEADLESS=1 omite la GUI de Gazebo (RViz pinta TODO lo necesario).
+    # Esto libera el 40-50% de CPU porque Gazebo GUI hace su propio
+    # render Ogre + Qt + scene broadcaster — todo redundante si miras RViz.
+    headless = os.environ.get('HEADLESS') == '1'
+    if headless:
+        gz_cmd = ['gz', 'sim', '-r', '-s', '-v', '1', world_path]  # -s = server only
+    else:
+        gz_cmd = ['gz', 'sim', '-r', '-v', '1',
+                  '--render-engine-gui', 'ogre', world_path]
+    gz = ExecuteProcess(cmd=gz_cmd, output='screen')
 
     rsp = Node(
         package='robot_state_publisher',
@@ -219,22 +216,11 @@ def generate_launch_description():
         name='GZ_SIM_SYSTEM_PLUGIN_PATH',
         value=os.path.join(gazebo_resources_mcr2, 'plugins'))
 
-    # ── Software-render env (Week 6 verbatim) ────────────────────────────────
-    set_ogre_rtt = SetEnvironmentVariable(name='OGRE_RTT_MODE',   value='Copy')
-    set_qt_xcb   = SetEnvironmentVariable(name='QT_QPA_PLATFORM', value='xcb')
-    extra_render_env = [
-        SetEnvironmentVariable(name='__GLX_VENDOR_LIBRARY_NAME', value='mesa'),
-        SetEnvironmentVariable(name='LIBGL_ALWAYS_SOFTWARE',     value='1'),
-        SetEnvironmentVariable(name='GALLIUM_DRIVER',            value='llvmpipe'),
-        SetEnvironmentVariable(name='MESA_LOADER_DRIVER_OVERRIDE', value='kms_swrast'),
-    ]
-
+    # Render env heredado del shell (run.sh). No forzamos nada aquí.
     sim = OpaqueFunction(function=_build_simulation)
 
     return LaunchDescription([
         declare_world, declare_x, declare_y, declare_yaw, declare_robot,
         set_resources, set_plugins,
-        set_ogre_rtt, set_qt_xcb,
-        *extra_render_env,
         sim,
     ])

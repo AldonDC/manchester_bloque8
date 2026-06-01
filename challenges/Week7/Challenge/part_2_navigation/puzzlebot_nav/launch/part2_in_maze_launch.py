@@ -40,12 +40,17 @@ def generate_launch_description():
     # Disable ~/.local so apt numpy 1.21 wins over pyenv's numpy 2.x.
     no_user_site = SetEnvironmentVariable(name='PYTHONNOUSERSITE', value='1')
 
-    # Robot spawns inside the maze, mismo spot que Part 1.
-    # (0.9, 0.8) está en el corredor sur, ligeramente a la derecha del
-    # muro divisorio iv2_west (x=0.5). Mirando norte (yaw=pi/2).
-    declare_x = DeclareLaunchArgument('x',   default_value='0.9')
-    declare_y = DeclareLaunchArgument('y',   default_value='0.8')
-    declare_yaw = DeclareLaunchArgument('yaw', default_value='1.5708')
+    # Spawn AL NORTE DEL DIVISOR CENTRAL, alineado al gap. Ubicación
+    # (1.9, 2.3): 0.5m al norte del divisor ih2 (y=2.0), 0.5m de cada
+    # muro del gap (ih2_left termina en x=1.4, ih2_right empieza en
+    # x=2.4). Apunta al sur (yaw=-π/2) para bajar directo al primer
+    # waypoint WP0=(1.9, 0.0) cruzando por el gap. Distancia inicial:
+    # 2.3m sin obstáculos en medio. v1 spawneaba en (0.9, 0.8) DENTRO
+    # de iv2. v2 en (1.95, 2.0) sobre el divisor. v3 en (1.9, 1.0)
+    # también atorado contra iv2_east. v4: ABOVE divisor, in pure gap.
+    declare_x = DeclareLaunchArgument('x',   default_value='1.9')
+    declare_y = DeclareLaunchArgument('y',   default_value='2.3')
+    declare_yaw = DeclareLaunchArgument('yaw', default_value='-1.5708')
     declare_bug = DeclareLaunchArgument(
         'bug', default_value='bug2',
         description="Reactive nav algorithm: 'bug0' or 'bug2'")
@@ -114,9 +119,20 @@ def generate_launch_description():
     bug = Node(package=nav_pkg, executable=LaunchConfiguration('bug'),
                name='bug', output='screen', parameters=common)
 
-    controller = Node(package=nav_pkg, executable='controller',
-                      name='controller', output='screen',
-                      parameters=common + [{'dist_tolerance': 0.15}])
+    # El controller PID convencional (set_point → cmd_vel) se lanza solo
+    # para los Bug clásicos (bug0/bug1/bug2), porque ESOS publican un
+    # set_point reactivo y delegan el control al PID externo. En cambio
+    # goto_goal NUEVO tiene FSM interna con velocidades adaptativas por
+    # estado y publica DIRECTAMENTE a /cmd_vel — si lanzáramos también
+    # el controller, ambos publicarían a /cmd_vel y se pelearían.
+    def _make_controller(context):
+        bug_choice = LaunchConfiguration('bug').perform(context)
+        if bug_choice == 'goto_goal':
+            return []  # goto_goal hace su propio control, no necesita PID externo
+        return [Node(package=nav_pkg, executable='controller',
+                     name='controller', output='screen',
+                     parameters=common + [{'dist_tolerance': 0.15}])]
+    controller = OpaqueFunction(function=_make_controller)
 
     # Visualise the maze walls in RViz so the view matches Gazebo.
     world_viz = Node(package=ekf_pkg, executable='world_visualizer',
@@ -124,7 +140,11 @@ def generate_launch_description():
                      parameters=common)
 
     # Reuse Part 1's RViz config (already shows maze + robot + ellipse).
-    rviz_cfg = os.path.join(ekf_share, 'rviz', 'ekf.rviz')
+    # Part 2 usa el RViz config DE NAV (no el de EKF) para que se vean las
+    # banderas verdes en /visualization_marker_array, los markers del Bug 2
+    # y la línea cerrada que une los 4 waypoints. El ekf.rviz no carga esos
+    # displays y por eso las banderas no aparecían en la primera corrida.
+    rviz_cfg = os.path.join(nav_share, 'rviz', 'puzzlebot_nav.rviz')
     rviz = Node(package='rviz2', executable='rviz2',
                 arguments=['-d', rviz_cfg], output='screen', parameters=common)
 

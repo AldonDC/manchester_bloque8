@@ -25,3 +25,21 @@ Thumbs.db
 venv/
 env/
 .venv/
+
+# LaTeX build artefacts (keep .tex and .pdf, ignore the rest)
+*.aux
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Debug / dump files (do not version)
+test_urdf.py
+urdf_dump.xml
+frames_*.gv
+frames_*.pdf
+multi_robot_architecture.*
