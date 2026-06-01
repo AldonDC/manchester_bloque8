@@ -343,7 +343,7 @@ class GotoGoal(Node):
                     self._avoid_side = 0
                 elif self._stuck_level == 2:
                     self.get_logger().warn(
-                        f'STUCK L2 → ESCAPE: retroceso + giro al lado libre')
+                        'STUCK L2 → ESCAPE: retroceso + giro al lado libre')
                     self._emergency = True
                     self._avoid_side = +1 if self.d_left >= self.d_right else -1
                 else:

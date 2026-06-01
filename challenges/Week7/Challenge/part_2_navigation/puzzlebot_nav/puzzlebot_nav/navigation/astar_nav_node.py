@@ -41,16 +41,15 @@ import time
 from enum import Enum
 from typing import List, Optional, Tuple
 
-import numpy as np
 import rclpy
 import yaml
 from rclpy.node import Node
 from geometry_msgs.msg import Point, Twist, PoseStamped
 from nav_msgs.msg import Odometry, Path, OccupancyGrid as RosOccupancyGrid
-from std_msgs.msg import String, Header, Float32
+from std_msgs.msg import String, Float32
 from visualization_msgs.msg import Marker, MarkerArray
 
-from puzzlebot_nav.planning.occupancy_grid import OccupancyGrid, grid_from_yaml
+from puzzlebot_nav.planning.occupancy_grid import grid_from_yaml
 from puzzlebot_nav.planning.astar_planner import astar
 from puzzlebot_nav.planning.path_smoother import smooth as smooth_path
 from puzzlebot_nav.control.pure_pursuit import PurePursuit, PurePursuitParams
@@ -372,7 +371,7 @@ class AstarNavNode(Node):
             self._laps_completed += 1
             self.state = FsmState.FINISHED
             self.get_logger().info(
-                f'═══════════════════════════════════════════════════════')
+                '═══════════════════════════════════════════════════════')
             self.get_logger().info(
                 f'  🎯 MISIÓN COMPLETADA · LAP {self._laps_completed}')
             self.get_logger().info(
@@ -380,7 +379,7 @@ class AstarNavNode(Node):
             self.get_logger().info(
                 f'  Robot detenido en wp[{old_idx}]={self.waypoints[old_idx]}')
             self.get_logger().info(
-                f'═══════════════════════════════════════════════════════')
+                '═══════════════════════════════════════════════════════')
             # Frenar inmediatamente.
             self._publish_cmd(0.0, 0.0)
             return

@@ -40,6 +40,15 @@ env/
 # Debug / dump files (do not version)
 test_urdf.py
 urdf_dump.xml
+scratch_*.py
 frames_*.gv
 frames_*.pdf
 multi_robot_architecture.*
+
+# Pyright / pylint caches
+.pylintrc
+.pyright*
+
+# CI / lint should not flag the professor's reference repo or vendored mcr2 sims
+# (these exclusions are also enforced in pyproject.toml for ruff and in the
+# workflow files for flake8 / colcon)

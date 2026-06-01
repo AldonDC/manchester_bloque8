@@ -24,7 +24,6 @@ runs from one terminal. It starts after a fixed warm-up so the sim,
 the bridge, the camera, the EKF and RViz are all running.
 """
 
-import math
 import time
 
 import rclpy

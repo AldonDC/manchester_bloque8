@@ -110,7 +110,6 @@ def _fix_urdf_for_gazebo_harmonic(urdf: str) -> str:
     Fix: inject SDF-compatible <material> blocks with <ambient>/<diffuse>
     into <gazebo reference="link"> blocks so Ogre2 renders via PBS.
     """
-    import re
 
     # ── 1. Strip legacy script materials and URDF-level materials ───────────
     urdf = re.sub(r'\s*<material>Gazebo/[^<]+</material>\s*', '\n  ', urdf)

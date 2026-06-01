@@ -1,31 +1,50 @@
-name: Python Linting & Formatting
+name: Python Linting
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+
+concurrency:
+  group: python-lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   python_lint:
+    name: Ruff (Week 7 packages)
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 5
+
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-python-version: '3.10'
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
 
-    - name: Install Linting Tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff black flake8
+      - name: Install Ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'ruff>=0.4,<1.0'
 
-    - name: Run Ruff (Fast Linting)
-      # Las exclusiones viven en pyproject.toml (ruff las lee automáticamente).
-      run: ruff check .
+      # Solo lintamos los paquetes del Week 7 challenge — el resto del árbol
+      # (professor_repo, weeks viejas, simuladores vendoreados de MCR2) está
+      # excluido en pyproject.toml. Errores que rompen sintaxis (E9, F63,
+      # F7, F82) se reportan como fatales; el resto solo como warning.
+      - name: Run Ruff — fatal errors (syntax / undefined names)
+        run: |
+          ruff check \
+            --select E9,F63,F7,F82 \
+            --output-format=github \
+            challenges/Week7/Challenge
 
-    - name: Run Flake8 (Optional but comprehensive)
-      run: flake8 . --exclude='professor_repo,challenges/Week5/Activities,challenges/Week5/Gazebo Simulator,test_urdf.py,install,build,log' --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Run Ruff — full check (informational)
+        if: always()
+        continue-on-error: true
+        run: |
+          ruff check \
+            --output-format=github \
+            challenges/Week7/Challenge

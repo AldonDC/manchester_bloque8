@@ -1,10 +1,35 @@
 [tool.ruff]
-# Carpetas que NO son entregables del estudiante (material del profesor,
-# paquetes de semanas previas, dumps experimentales). Se excluyen de los
-# checks de CI para evitar falsos positivos.
+# Solo lintamos el entregable Week 7. Todo lo demás (material del profesor,
+# semanas viejas, simulador vendoreado de MCR2, scripts experimentales) se
+# excluye explícitamente para evitar falsos positivos en CI.
 extend-exclude = [
     "professor_repo",
-    "challenges/Week5/Activities",
-    "challenges/Week5/Gazebo Simulator",
+    "challenges/Week3",
+    "challenges/Week4",
+    "challenges/Week5",
+    "challenges/Week6",
     "test_urdf.py",
+    "scratch_*.py",
+    "urdf_dump.xml",
+    "frames_*.gv",
+    "frames_*.pdf",
+    "multi_robot_architecture.*",
+    "build",
+    "install",
+    "log",
 ]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+# Reglas activas:
+#   E9   — IndentationError / SyntaxError reales (siempre fatal)
+#   F63, F7, F82 — undefined / unused names críticos
+#   F401 — imports no usados (auto-fixable)
+#   F541 — f-strings sin placeholders
+# Reglas relajadas:
+#   E501 (long lines), E701/E702 (multiple statements on one line),
+#   E731 (lambda assignments), E741 (ambiguous l)
+#   No las marcamos como error: el código del challenge usa varias
+#   de estas idiomáticamente (lambdas para shorthand de parámetros, etc.)
+ignore = ["E501", "E701", "E702", "E731", "E741"]

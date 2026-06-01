@@ -28,7 +28,7 @@ party math lib) — within the challenge rules.
 """
 
 import math
-from typing import Optional, Tuple
+from typing import Optional
 
 import cv2 as cv
 import numpy as np

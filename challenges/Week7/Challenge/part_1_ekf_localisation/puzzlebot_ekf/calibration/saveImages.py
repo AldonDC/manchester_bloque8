@@ -1,4 +1,3 @@
-import numpy as np
 import cv2
 
 # === [1] Initialize Camera ===

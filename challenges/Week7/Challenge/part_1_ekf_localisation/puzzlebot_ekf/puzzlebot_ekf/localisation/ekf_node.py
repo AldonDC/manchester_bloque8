@@ -27,16 +27,14 @@ import json
 import math
 import os
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from std_msgs.msg import Float32, String
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseArray, Point, TransformStamped
+from geometry_msgs.msg import PoseArray, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import TransformBroadcaster
 
@@ -506,8 +504,6 @@ class EKFNode(Node):
             n = ph['n']
             if n == 0:
                 continue
-            rmse_x = math.sqrt(ph['sse_x'] / n)
-            rmse_y = math.sqrt(ph['sse_y'] / n)
             rmse_yaw_deg = math.degrees(math.sqrt(ph['sse_yaw'] / n))
             rmse_xy = math.sqrt((ph['sse_x'] + ph['sse_y']) / n)
             nees_mean = ph['nees_sum'] / n
@@ -605,17 +601,17 @@ class EKFNode(Node):
         lines = [
             '',
             f'╔{bar}╗',
-            f'║  PART 1 · EKF Localisation — FINAL EVALUATION METRICS' + ' ' * 18 + '║',
+            '║  PART 1 · EKF Localisation — FINAL EVALUATION METRICS' + ' ' * 18 + '║',
             f'╠{bar}╣',
             f'║  Samples              : {n:>6d}                                              ║',
             f'║  RMSE position (xy)   : {rmse_xy:>6.3f} m                                       ║',
             f'║    RMSE x             : {rmse_x:>6.3f} m                                       ║',
             f'║    RMSE y             : {rmse_y:>6.3f} m                                       ║',
             f'║  RMSE yaw             : {rmse_yaw_deg:>6.2f} °                                       ║',
-            f'║                                                                        ║',
+            '║                                                                        ║',
             f'║  NEES mean            : {nees_mean:>6.2f}   (expected ≈ 3.00 for 3-DOF filter)  ║',
             f'║  NEES in 95% χ² band  : {pct_in_bounds:>5.1f}%  (band = [0.216, 9.348])           ║',
-            f'║                                                                        ║',
+            '║                                                                        ║',
             f'║  ArUco updates accepted: {total_updates:>5d}                                          ║',
             f'║  ArUco updates rejected: {total_rejects:>5d}  ({100-accept_pct:.1f}%)' + ' ' * 30 + '║',
             f'║  Per-marker breakdown  : upd={dict(sorted(self._updates.items()))}   rej={dict(sorted(self._rejects.items()))}',
@@ -630,7 +626,7 @@ class EKFNode(Node):
         # Sub-bloque por fase si hubo auto_demo (PDF: escenarios robustos).
         phases_summary = metrics['phases']
         if phases_summary:
-            lines.append(f'  Per-phase breakdown (PDF robustness scenarios):')
+            lines.append('  Per-phase breakdown (PDF robustness scenarios):')
             lines.append(f'  {"phase":<15}{"n":>5}{"RMSE_xy":>10}{"NEES":>8}{"in_band":>9}{"upd":>5}{"rej":>5}{"P_grow":>8}')
             for pid, ps in phases_summary.items():
                 lines.append(

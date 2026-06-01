@@ -45,10 +45,10 @@ from enum import Enum
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32, String, ColorRGBA
+from std_msgs.msg import Float32, String
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import MarkerArray
 
 from puzzlebot_nav.navigation._status_panel import render as render_panel
 
