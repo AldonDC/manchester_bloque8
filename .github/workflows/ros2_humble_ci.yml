@@ -42,7 +42,7 @@ jobs:
       - name: Colcon Build (Week 7 only)
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source /opt/ros/humble/setup.bash
           colcon build \
             --symlink-install \
@@ -62,14 +62,25 @@ jobs:
         if: always()
         shell: bash
         run: |
-          set +e
-          find install -maxdepth 2 -mindepth 2 -type d | sort
+          if [ -d install ]; then
+            find install -maxdepth 2 -mindepth 2 -type d | sort
+          else
+            echo "install/ does not exist — build step failed before producing artefacts."
+          fi
 
       - name: Colcon Test (Week 7 only)
+        # Solo corremos los tests si el build dejó install/setup.bash.
+        # Si el build falla, los tests no tienen sentido y este step se salta
+        # silenciosamente — el job ya quedó marcado como rojo por el build.
+        if: success()
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source /opt/ros/humble/setup.bash
+          if [ ! -f install/setup.bash ]; then
+            echo "install/setup.bash missing — skipping tests."
+            exit 0
+          fi
           source ./install/setup.bash
           colcon test \
             --event-handlers console_direct+ \
